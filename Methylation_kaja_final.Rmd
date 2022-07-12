@@ -2512,10 +2512,21 @@ pdf(paste0(paper_fig, "/tsg_pie.pdf"), width=6, height=6)
 pie2
 dev.off()
 
+# break up correlations 
+tally_cor = cor[ cor$fdr < .05 & cor$direction == "neg", ]
 
 ```
 
+### List of TSG that significantly negatively correlated with UHRF1 
+  * out of <span style="color:#d6542d; font-weight: bold;"> `r length (kaja$gene)` </span> TSG there were
 
+```{r fig=TRUE,fig.width= 7 , fig.height= 7 , echo=FALSE, include=TRUE, results='asis' }
+
+kable( tally_cor  , format = "html" , row.names = T, caption = "Negatively correlated with UHRF1 ( fdf < .05) " ) %>% kable_classic(full_width = F, position = "center")
+
+
+
+```
 
 ### TOP 12 correlations
 
