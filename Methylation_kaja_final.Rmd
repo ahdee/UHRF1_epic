@@ -2712,7 +2712,7 @@ DT::datatable(onlykras,
   * the following censors are analyzed: "OS","DSS","DFI","PFI"
     + 4 different survival were completed here.
     + OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car), PFI as well as DFI, progression and disease free
-  * __ALSO__ in TSG list that correlated negatively with UHRF1? 
+  * __ALSO__ in TSG list that correlated negatively with UHRF1
 
 #### Overall Summary 
 
@@ -2816,12 +2816,104 @@ kable( table_all_surv_kras_tsg_cor_uhrf1  , format = "html" , row.names = F, cap
 
 #### Forest HR plots 
 
-```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
 
-surv_kras_tsg_cor_uhrf1_plots[["OS"]] + surv_kras_tsg_cor_uhrf1_plots[["PFI"]]
+surv_kras_tsg_cor_uhrf1_plots[["OS"]] +  ( surv_kras_tsg_cor_uhrf1_plots[["PFI"]] + ylab("") + theme ( legend.position = "none") )
 
 ```
 
+```{r}
+
+## add zheng - combine all negative and see what the results are. 
+
+
+os_genes = surv_kras_tsg_cor_uhrf1[ surv_kras_tsg_cor_uhrf1$HR < 1 & surv_kras_tsg_cor_uhrf1$censor == "OS", ]$gene
+os_genes = unique ( as.character(os_genes))
+
+df = data$cpm [row.names ( data$cpm  ) %in%  os_genes , , drop=F]
+df =   df[ , t_index]
+
+
+
+surv_kras_tsg_cor_uhrf1_ALL_neg_OS  = wrapper.surv ( test.gene= c ( unique ( as.character ( os_genes)  ) )
+                     ,mutation=mut.this
+                     ,qn=.75
+                     ,counts=df
+                     , mut.table = xena.mut
+                     , sclin=sclinmain
+                     , zheng = 1
+                     , groupname = "TSGs AntiCorrelated with UHRF1"
+                     # no need to define censor since function will plot everything. 
+                     # ,  censor="OS", censor.time="OS.time"
+)
+
+
+
+
+
+#grid.arrange( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut)
+#grid.arrange( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.wt)
+
+names ( cen ) = c( "OS","DSS","DFI","PFI")
+
+grid.arrange ( 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut$grobs[[ 1 ]] , 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.wt$grobs[[ 1  ]] , ncol=2 ) 
+
+
+### plot PFI now 
+pfi_genes = surv_kras_tsg_cor_uhrf1[ surv_kras_tsg_cor_uhrf1$HR < 1 & surv_kras_tsg_cor_uhrf1$censor == "PFI", ]$gene
+pfi_genes = unique ( as.character(pfi_genes))
+
+df = data$cpm [row.names ( data$cpm  ) %in%  pfi_genes , , drop=F]
+df =   df[ , t_index]
+
+
+
+surv_kras_tsg_cor_uhrf1_ALL_neg_PFI  = wrapper.surv ( test.gene= c ( unique ( as.character ( pfi_genes)  ) )
+                                                     ,mutation=mut.this
+                                                     ,qn=.75
+                                                     ,counts=df
+                                                     , mut.table = xena.mut
+                                                     , sclin=sclinmain
+                                                     , zheng = 1
+                                                     , groupname = "TSGs AntiCorrelated with UHRF1"
+                                                     # no need to define censor since function will plot everything. 
+                                                     # ,  censor="OS", censor.time="OS.time"
+)
+
+
+grid.arrange ( 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.mut$grobs[[ 4 ]] , 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.wt$grobs[[ 4  ]] , ncol=2 ) 
+
+
+
+
+
+```
+
+#### combined TSG and survival {.tabset}
+
+##### Overall Specific Survival (OS) 
+
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+grid.arrange ( 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut$grobs[[ 1 ]] , 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.wt$grobs[[ 1  ]] , ncol=2 ) 
+
+```
+
+##### (Progression Free Inverval ) PFI
+
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+grid.arrange ( 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.mut$grobs[[ 4 ]] , 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.wt$grobs[[ 4  ]] , ncol=2 ) 
+
+```
 
 
 
@@ -3614,18 +3706,6 @@ cat ( "\n\n")
 
 
 ```
-
-
-```{r}
-
-# analyzed survival for only kras only survival + TSG 
-
-surv_kras_tsg_cor_uhrf1 = onlykras [ onlykras$gene %in%  row.names ( tally_cor ) ,  ]
-
-
-
-```
-
 
 
 
