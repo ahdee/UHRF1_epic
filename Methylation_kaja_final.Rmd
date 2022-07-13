@@ -2723,14 +2723,24 @@ library ( cowplot)
 
 # get all sig hazard
 surv_kras_tsg_cor_uhrf1 =  surv[  surv$p.value < .05  , ] 
-# remove any genes that also has wt p < .05
-wt_hr_genes = surv_kras_tsg_cor_uhrf1[surv_kras_tsg_cor_uhrf1$type %in% c ( "wt"), ]$gene 
+# remove any genes that also has wt or all  p < .05
+# removing all will not impact since if the gene has KRAS it will automaticall stay 
+wt_hr_genes = surv_kras_tsg_cor_uhrf1[surv_kras_tsg_cor_uhrf1$type %in% c ( "wt", "all"), ]$gene 
 surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[!surv_kras_tsg_cor_uhrf1$gene %in% wt_hr_genes, ]
+
+
+
 
 
 # subset TSG only. 
 surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[surv_kras_tsg_cor_uhrf1$gene %in% row.names ( tally_cor ),   ]
-
+# remove dups 
+# HR <1 turn into negative so that whe we sort by highest to lowest absolute the one that is more protected will stay after dup 
+# eg,  HR = -.43, .-33 absolute sort wil keep the .43
+surv_kras_tsg_cor_uhrf1$temp = ifelse(surv_kras_tsg_cor_uhrf1$HR < 1, surv_kras_tsg_cor_uhrf1$HR * -1, surv_kras_tsg_cor_uhrf1$HR)
+surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[ order ( surv_kras_tsg_cor_uhrf1$gene,  surv_kras_tsg_cor_uhrf1$temp, decreasing=T), ]
+# wil not remove duplicates because I will just plot each censor type seperately, leave above in case use in future 
+surv_kras_tsg_cor_uhrf1$temp  = NULL 
 
 surv_kras_tsg_cor_uhrf1$pcolor = ifelse ( surv_kras_tsg_cor_uhrf1$HR < 1, "protective","disruptive")
 pcolor =  c( protective = "#338ab5", disruptive="#8a2949")
@@ -2742,9 +2752,15 @@ surv_kras_tsg_cor_uhrf1$gene = factor ( surv_kras_tsg_cor_uhrf1$gene , levels = 
 
 table ( surv_kras_tsg_cor_uhrf1$censor)
 
-surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "PFI", ] %>%
-  ggplot(aes(x = HR,
-             y = gene)) +
+
+surv_kras_tsg_cor_uhrf1_plots = list ()
+
+for ( s in c("OS", "PFI")){
+
+surv_kras_tsg_cor_uhrf1_plots [[s]] = surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == s, ] %>%
+  ggplot(aes(x = HR, 
+             y =  reorder(gene, desc(HR))  
+             )) +
   # Add point for estimate
   geom_point(aes(color=pcolor), size=6)+ scale_color_manual(values= pcolor  ) +
   # Add error bars, use line_typ to set line type
@@ -2782,18 +2798,27 @@ surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "PFI", ] %>%
   # Remove ticks and text from bottom secondary axis
   theme(axis.ticks.x.bottom = element_blank(),
         axis.text.x.bottom = element_blank(),
-        axis.line = element_line(colour = "black"), legend.position="bottom" )
+        axis.line = element_line(colour = "black"), legend.position="bottom" ) + ggtitle ( s )
 
-
+}
 
 ```
 
-```{r}
 
-freq = data.frame ( table ( onlykras [ onlykras$gene %in%  row.names ( tally_cor ) ,  c("censor", "type")]))
-freq = freq [ order ( freq$Freq, decreasing = T ), ]
+```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
 
-kable( freq  , format = "html" , row.names = F, caption = "Total frequency" ) %>% kable_classic(full_width = F, position = "center")
+# keep this to display later but will remove duplicate sorting decrease asb ( HR )  
+table_all_surv_kras_tsg_cor_uhrf1 = data.frame ( table ( surv_kras_tsg_cor_uhrf1$censor))
+table_all_surv_kras_tsg_cor_uhrf1 = table_all_surv_kras_tsg_cor_uhrf1[order ( table_all_surv_kras_tsg_cor_uhrf1$Freq, decreasing=T), ]
+kable( table_all_surv_kras_tsg_cor_uhrf1  , format = "html" , row.names = F, caption = "Total frequency" ) %>% kable_classic(full_width = F, position = "center")
+
+```
+
+#### Forest HR plots 
+
+```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+surv_kras_tsg_cor_uhrf1_plots[["OS"]] + surv_kras_tsg_cor_uhrf1_plots[["PFI"]]
 
 ```
 
