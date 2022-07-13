@@ -2549,9 +2549,29 @@ cor_kras$direction = ifelse ( cor_kras$cor_kras >0 , "pos", "neg")
 cor_kras =cor_kras[ cor_kras$fdr < .05, ]
 cor_kras = cor_kras[ order ( cor_kras$direction), ]
 
+cor_kras_urhf1 = merge ( tally_cor [ , "cor", drop=F], cor_kras [ cor_kras$direction == "neg", "cor_kras", drop=F], by="row.names" ) 
+colnames (  cor_kras_urhf1  ) = c("gene", "UHRF1_cor", "KRAS_cor")
+
+```
+
+### Including KRAS 
+
+```{r fig=TRUE,fig.width= 7 , fig.height= 7 , echo=FALSE, include=TRUE, results='asis' }
+
+tally = data.frame ( table ( cor_kras[ cor_kras$fdr < .05, ] $direction) , stringsAsFactors = F) 
+pie3  = make.pie( tally
+                           , name.first="Rho Direction"
+                           , cc = c(pos="#1c9c86", neg = "#8bf0de")
+                           , leg.pos = "right"
+                           , title = "Significantly Correlated TSG vs KRAS that was also negatively correlated with UHRF1, fdr < .05 "
+)
+
+pie2 + pie3 
+
 
 
 ```
+
 
 ### TOP 12 correlations
 
