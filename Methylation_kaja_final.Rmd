@@ -2525,6 +2525,31 @@ tally_cor = cor[ cor$fdr < .05 & cor$direction == "neg", ]
 kable( tally_cor  , format = "html" , row.names = T, caption = "Negatively correlated with UHRF1 ( fdf < .05) " ) %>% kable_classic(full_width = F, position = "center")
 
 
+```
+
+```{r}
+# which one of these are also correlated with KRAS? 
+
+cpm_kras = data$cpm
+cpm_kras = cpm_kras [ row.names ( cpm_kras ) %in% unique ( c ( "KRAS", as.character ( row.names ( tally_cor) )) ), ]
+
+cpm_kras = cpm_kras [ , unique ( c ( "KRAS", names ( cpm_kras)  ) ) ]
+
+
+cor_kras = cor(cpm_kras[-1], cpm_kras$KRAS, method="spearman"  ) 
+cor_p = cor.mtest( cpm_kras, method="spearman"    )
+
+p.value = data.frame ( cor_p$p)
+cor_kras = data.frame ( cor_kras )
+cor_kras$pv =  p.value[ -1, ]$X1
+cor_kras$fdr = p.adjust(cor_kras$pv, method="BH", n=nrow ( cor_kras ))
+
+cor_kras$direction = ifelse ( cor_kras$cor_kras >0 , "pos", "neg")
+
+cor_kras =cor_kras[ cor_kras$fdr < .05, ]
+cor_kras = cor_kras[ order ( cor_kras$direction), ]
+
+
 
 ```
 
