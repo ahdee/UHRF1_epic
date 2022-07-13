@@ -2556,6 +2556,9 @@ colnames (  cor_kras_urhf1  ) = c("gene", "UHRF1_cor", "KRAS_cor")
 
 ### Including KRAS 
 
+  * pie charts are all correlations with fdr < .05 
+  * Right plot only includes gene 
+
 ```{r fig=TRUE,fig.width= 7 , fig.height= 7 , echo=FALSE, include=TRUE, results='asis' }
 
 tally = data.frame ( table ( cor_kras[ cor_kras$fdr < .05, ] $direction) , stringsAsFactors = F) 
@@ -2569,6 +2572,14 @@ pie3  = make.pie( tally
 pie2 + pie3 
 
 
+
+```
+
+### TSG that are anti-correlated with both UHRF1 and KRAS 
+
+```{r fig=TRUE,fig.width= 7 , fig.height= 7 , echo=FALSE, include=TRUE, results='asis' }
+cor_kras_urhf1[] <- lapply(cor_kras_urhf1, function(y) if(is.numeric(y)) round(y, 2) else y)
+DT::datatable ( cor_kras_urhf1  , rownames = F)
 
 ```
 
@@ -2688,6 +2699,104 @@ DT::datatable(onlykras,
 
 
 ```
+
+
+
+
+
+### HR table + TSG {.tabset}
+
+  * how many genes have the following criteria? 
+    + Genes that have __HR < 1  ( that is increase expression is protective)__
+    + only genes that are __significant in KRAS BUT not WT__
+  * the following censors are analyzed: "OS","DSS","DFI","PFI"
+    + 4 different survival were completed here.
+    + OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car), PFI as well as DFI, progression and disease free
+  * __ALSO__ in TSG list that correlated negatively with UHRF1? 
+
+#### Overall Summary 
+
+
+```{r}
+
+library ( cowplot)
+
+# get all sig hazard
+surv_kras_tsg_cor_uhrf1 =  surv[  surv$p.value < .05  , ] 
+# remove any genes that also has wt p < .05
+wt_hr_genes = surv_kras_tsg_cor_uhrf1[surv_kras_tsg_cor_uhrf1$type %in% c ( "wt"), ]$gene 
+surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[!surv_kras_tsg_cor_uhrf1$gene %in% wt_hr_genes, ]
+
+
+# subset TSG only. 
+surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[surv_kras_tsg_cor_uhrf1$gene %in% row.names ( tally_cor ),   ]
+
+
+surv_kras_tsg_cor_uhrf1$pcolor = ifelse ( surv_kras_tsg_cor_uhrf1$HR < 1, "protective","disruptive")
+pcolor =  c( protective = "#338ab5", disruptive="#8a2949")
+
+labelp =  c ( surv_kras_tsg_cor_uhrf1$CI.95.high  ) 
+
+surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[order ( -surv_kras_tsg_cor_uhrf1$HR), ]
+surv_kras_tsg_cor_uhrf1$gene = factor ( surv_kras_tsg_cor_uhrf1$gene , levels = unique ( surv_kras_tsg_cor_uhrf1$gene))
+
+table ( surv_kras_tsg_cor_uhrf1$censor)
+
+surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "PFI", ] %>%
+  ggplot(aes(x = HR,
+             y = gene)) +
+  # Add point for estimate
+  geom_point(aes(color=pcolor), size=6)+ scale_color_manual(values= pcolor  ) +
+  # Add error bars, use line_typ to set line type
+  geom_errorbar(aes(xmax = CI.95.high,
+                    xmin = CI.95.low,
+                     #lty = line_typ # no need unless you want to do two classes maybe later? 
+                    ),
+                lty = "dashed",
+                show.legend = F,
+                width = 0.02) +
+  # Add estimates values as text
+  geom_text(aes(label = round(HR, 2),
+                 x= HR + .3
+                    ), 
+            # nudge position in x and y directions
+            #nudge_x = 0,
+            nudge_y = 0.2) +
+  # Add dashed vertical line in 0 Difference (y-axis)
+  geom_vline(xintercept=1, lty = "solid") +
+  # Make line for second axis (left side)
+  #geom_vline(xintercept = min_val )  +
+  # Put x axis in the right side and make second axis in bottom
+  scale_x_continuous(position = "top",
+                     sec.axis = sec_axis(~., name = ""),
+                     limits = c(0, 6.5),
+                     expand = c(0,0)) +
+  # Change y axis position and add labs
+  #scale_y_discrete(position = "right",
+   #                labels = df$labs_y) +
+  # Change axis titles
+  labs(x = "Hazard Ratio", y = "Gene") +
+  # Add cowplot theme
+  theme_cowplot()+
+  # Final theme adjustments
+  # Remove ticks and text from bottom secondary axis
+  theme(axis.ticks.x.bottom = element_blank(),
+        axis.text.x.bottom = element_blank(),
+        axis.line = element_line(colour = "black"), legend.position="bottom" )
+
+
+
+```
+
+```{r}
+
+freq = data.frame ( table ( onlykras [ onlykras$gene %in%  row.names ( tally_cor ) ,  c("censor", "type")]))
+freq = freq [ order ( freq$Freq, decreasing = T ), ]
+
+kable( freq  , format = "html" , row.names = F, caption = "Total frequency" ) %>% kable_classic(full_width = F, position = "center")
+
+```
+
 
 
 
@@ -3480,6 +3589,20 @@ cat ( "\n\n")
 
 
 ```
+
+
+```{r}
+
+# analyzed survival for only kras only survival + TSG 
+
+surv_kras_tsg_cor_uhrf1 = onlykras [ onlykras$gene %in%  row.names ( tally_cor ) ,  ]
+
+
+
+```
+
+
+
 
 
 ```{r}
