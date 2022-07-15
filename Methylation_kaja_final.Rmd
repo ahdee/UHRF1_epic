@@ -124,6 +124,7 @@ library ( ComplexHeatmap)
 library(Rtsne)
 library(methylGSA)
 library(IlluminaHumanMethylationEPICanno.ilm10b4.hg19)
+library ( MASS )
 
 
 getPalette = colorRampPalette(brewer.pal(9, "Set1")) # expand color pallete
@@ -2915,7 +2916,107 @@ grid.arrange (
 
 ```
 
+```{r}
+library ( stargazer )
+# probit model 
+# the table output above gives the "genotype" 
+table ( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$df$genome )
+# get the annotatoins table. We want age and stage 
+probit_df = surv_kras_tsg_cor_uhrf1_ALL_neg_OS$df [ , c("sample", "sample2", "age.diag","gender","genome","stage")]
 
+# get the counts, tumor only 
+
+
+
+# these are the genes we want to study probit for 
+study_this = unique ( row.names ( tally_cor ) )
+
+or_df = data.frame ()
+
+for ( gg in study_this){
+  count_mini  =  data.frame ( t ( data$cpm[row.names ( data$cpm) == gg ,  ] ) )
+  if ( ncol ( count_mini) == 0 ) { next; }
+  print ( gg )
+  colnames(count_mini) = "count"
+  count_mini$sample =  gsub ( "[A-Z]$", "", row.names ( count_mini)  )
+  
+  count_mini = merge(count_mini, probit_df , by.x="sample", by.y = "sample" )
+  count_mini$genome = factor ( count_mini$genome, levels = c("KRAS",'wt' ))
+  
+  count_mini$mutation = ifelse ( count_mini$genome == "KRAS", 1, 0 )
+  count_mini$mutation = factor ( count_mini$mutation, levels= c(1,0))
+  
+  
+  logit = glm(mutation ~ gender + age.diag + count ,  family=binomial(link="logit"), data=count_mini)
+      
+     df= cbind(Estimate=round(coef(logit),4),
+            OR=round(exp(coef(logit)),4), 
+            p.value = coef(summary(logit))[,4]
+            )
+     df = data.frame(df )
+   
+  summary ( logit )    
+  logit.or = exp(coef(logit))
+  
+  df$gene = gg 
+  or_df = rbind ( or_df, df[ 4, ])
+}
+
+    
+or_df = or_df[ or_df$p.value < .05, ] 
+or_df$class = ifelse ( or_df$OR < 1, "low", "high")
+
+table ( or_df$class)  
+
+# histogram 
+
+ccc=c ( low="#d1b543", high="#99755a")  
+cut_here = 1
+msg = ""
+binwidth= 0.20 
+y=.3
+
+
+or_hist = ggplot(or_df, aes(x=OR)) + 
+    geom_histogram(aes(y=(..count..)/sum(..count..), fill=class), colour='white' , alpha=.7 , binwidth= binwidth )+
+    # geom_density(alpha=0, fill="grey") +
+    theme(legend.position="none",  legend.key = element_blank(),
+          # element_blank()
+          axis.text.y = element_text(size= 25 ),
+          axis.text.x =  element_text(size= 25 ),
+          axis.title.x = element_text(size=25),
+          axis.title.y     = element_text(size=25), 
+          legend.text      =element_text(size=25),
+          legend.title = element_text(size=25),
+          plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
+          # hjust centers the title
+    ) + theme(
+              #panel.grid.major = element_blank()
+              #, panel.grid.minor = element_blank()
+              panel.background = element_blank()
+              , axis.line = element_line(colour = "black") # plot border
+    ) + ylab ( "percent") + 
+   geom_vline(xintercept = cut_here, linetype = 2, color = "black") +
+   # annotate(geom = "text", x = cut_here , y = y, label = paste0 ( msg , cut_here ), color = "black", angle = 90, vjust=2.5) + 
+   xlab ("Odd Ratio") + scale_fill_manual(values =ccc) +
+   scale_y_continuous(expand = c(0, 0), limits = c(0, NA))
+
+tally = data.frame ( table ( or_df$class))
+
+or_pie = make.pie( tally
+                           , name.first="OR class"
+                           , cc = ccc
+                           , leg.pos = "top"
+                           , title = ""
+)
+
+
+or_hist + or_pie + plot_layout(widths = c(3,1))
+
+
+
+
+```
 
 ```{r}
 # functions for survival 
