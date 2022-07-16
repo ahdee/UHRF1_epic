@@ -2999,16 +2999,25 @@ or_hist = ggplot(or_df, aes(x=OR)) +
    geom_vline(xintercept = cut_here, linetype = 2, color = "black") +
    # annotate(geom = "text", x = cut_here , y = y, label = paste0 ( msg , cut_here ), color = "black", angle = 90, vjust=2.5) + 
    xlab ("Odd Ratio") + scale_fill_manual(values =ccc) +
-   scale_y_continuous(expand = c(0, 0), limits = c(0, NA))
+   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
+   theme(legend.position="top", 
+      legend.text      =element_text(size=25),
+      legend.title = element_text(size=25),
+      plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
+      # hjust centers the title
+)
+
 
 tally = data.frame ( table ( or_df$class))
 
 or_pie = make.pie( tally
                            , name.first="OR class"
                            , cc = ccc
-                           , leg.pos = "top"
+                           , leg.pos = "none"
                            , title = ""
-)
+) 
+ 
+
 
 
 or_hist + or_pie + plot_layout(widths = c(3,1))
@@ -3017,6 +3026,29 @@ or_hist + or_pie + plot_layout(widths = c(3,1))
 
 
 ```
+
+### Odd ratio
+
+  * from the `r nrow ( tally_cor )` genes that anticorrelated with UHRF1 how many of these gene expression are significantly 
+associated with the odds of having a KRAS mutation vs wt-type in patients with lung cancer. 
+  * Odd ratio > 1: increase expression is associated with higher odds of KRAS mutation
+    + example, an oadd ratio of 1.4 means the odds of having a KRAS mutations is 1.4 times greater with every cpm unit incrase in the gene. 
+  * Odd ratio < 1: decrease expression is associated with higher oads of KRAS mutation. 
+  
+    + example, an odd ratio of .4 indicates that thed odds of having a KRAS mutation decreases by a factor 0.4 for every cpm unit increase in the gene 
+#### Histogram 
+
+```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
+
+or_hist + or_pie + plot_layout(widths = c(3,1))
+
+```
+
+#### Table
+
+  * all significant genes. 
+  * ranked by OR low to high
+
 
 ```{r}
 # functions for survival 
@@ -3652,6 +3684,23 @@ sclinmain = read.table(
 
 
 
+
+```
+
+
+
+```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
+
+or_df = or_df[ order (or_df$class, -or_df$OR, decreasing=T), ]
+or_df$p.value = round ( or_df$p.value, 5)
+or_df$Estimate = NULL 
+DT::datatable(or_df,
+              caption = '', rownames = F, filter= list ( position="top", clear = FALSE )  , extensions = 'Buttons'
+              , options = list(dom = 'Bfrtip'
+                               , autoWidth = F, scrollX=T, className = 'dt-left', pageLength =50
+              )
+              
+)
 
 ```
 
