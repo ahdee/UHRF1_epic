@@ -3116,6 +3116,7 @@ or_hist + or_pie + plot_layout(widths = c(3,1))
 
   * all significant genes. 
   * ranked by OR low to high
+  * note CDKN1A does have OR < 1 
 
 
 
@@ -3772,8 +3773,8 @@ DT::datatable(or_df,
 
 ```
 
-#### Pie
-  
+#### Filtered with KRAS {.tabset}
+
   * significant ODD ratio 
   * all genes are significantly correlated with UHRF1 
   * labels indicates if it also anticorrelates with KRAS 
@@ -3823,12 +3824,28 @@ odd_tally_plot = ggplot(data = tally,
 
 ```
 
+##### Pie chart 
+
 ```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
 
 
 odd_tally_plot
 
 ```
+
+##### Table
+
+```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
+
+
+
+kable( or_df_anti_urhf1_kras  , format = "html" , row.names = F, caption = "Main Key" ) %>% kable_classic(full_width = F, position = "center")
+
+
+
+```
+
+
 
 ### HR with multiple censors
 
