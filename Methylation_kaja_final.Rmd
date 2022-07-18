@@ -2325,6 +2325,10 @@ luad_paper = read.xlsx("https://www.dropbox.com/s/8jy8nvgu9o0wxkf/NIHMS629713-su
 luad_paper = luad_paper[ luad_paper$Validation.Judgement == 1, ]
 luad_paper = luad_paper[!duplicated ( luad_paper$Hugo.Symbol), ]
 total_luad1 = nrow ( luad_paper)
+
+# how many of these in kaja list 
+total_luad_inkaja = length ( intersect(luad_paper$Hugo.Symbol, kaja$gene ) )
+
 # subset by only TSG in cosmic
 luad_paper = luad_paper[ luad_paper$Hugo.Symbol %in% 
                            unique ( cosmic[grepl ( "TSG", cosmic$Role.in.Cancer ), ]$Gene.Symbol )
@@ -2432,6 +2436,11 @@ ggplot(cpm, aes_string(x=x, y=y )) +
 
 * UHRF1 correlation with TSG, define with Kaja's list. 
 * As you can see most of the stronger top correltions are all negatively correlated. 
+* __7/2022__ we added genes from the LUAD paper. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4231481/
+* there was a total of `r total_luad1` unique genes. 
+  + subsetting this with COSMIC defined as TSG the total was `r total_luad2`
+  + of these `r nrow ( notinkaja_luad )` was not found in the original TSG list 
+  
 
 ```{r fig=TRUE,fig.width= 7 , fig.height= 7 , echo=FALSE, include=TRUE, results='asis' }
 p 
@@ -2941,6 +2950,16 @@ grid.arrange (
 
 ```
 
+##### OS table 
+
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+kable( surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "OS" & surv_kras_tsg_cor_uhrf1$gene %in% os_genes, ]
+       , format = "html" , row.names = F, caption = "OS" ) %>% kable_classic(full_width = F, position = "center")
+
+
+```
+
 ##### (Progression Free Inverval ) PFI
 
 ```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
@@ -2950,6 +2969,20 @@ grid.arrange (
     surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.wt$grobs[[ 4  ]] , ncol=2 ) 
 
 ```
+
+
+##### PFI table 
+
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+kable( surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "PFI" & surv_kras_tsg_cor_uhrf1$gene %in% pfi_genes, ]
+       , format = "html" , row.names = F, caption = "OS" ) %>% kable_classic(full_width = F, position = "center")
+
+
+```
+
+
+
 
 ```{r}
 library ( stargazer )
