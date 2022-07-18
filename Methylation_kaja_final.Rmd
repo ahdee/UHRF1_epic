@@ -2314,6 +2314,34 @@ for (nm in names( result_var ) ){
 #v11 = v11$treehouse
 #gc()
 # from GDAC tmm normalized log2 cpm 
+
+### adding LUAD TSG here not in kaja list. 
+# S_Table 5-Verification
+
+luad_paper = read.xlsx("https://www.dropbox.com/s/8jy8nvgu9o0wxkf/NIHMS629713-supplement-Supllementary_information_2.xlsx?dl=1"
+                       , sheet = "mod_table5"
+                       )
+
+luad_paper = luad_paper[ luad_paper$Validation.Judgement == 1, ]
+luad_paper = luad_paper[!duplicated ( luad_paper$Hugo.Symbol), ]
+total_luad1 = nrow ( luad_paper)
+# subset by only TSG in cosmic
+luad_paper = luad_paper[ luad_paper$Hugo.Symbol %in% 
+                           unique ( cosmic[grepl ( "TSG", cosmic$Role.in.Cancer ), ]$Gene.Symbol )
+                         , ]
+total_luad2 = nrow ( luad_paper )
+
+# not in kaja list 
+notinkaja_luad = setdiff ( luad_paper$Hugo.Symbol, kaja$gene)
+
+# add to kaja list
+notinkaja_luad = cosmic[ cosmic$Gene.Symbol %in% notinkaja_luad, ]
+notinkaja_luad = notinkaja_luad[ , c("Entrez.GeneId", "Gene.Symbol" )]
+colnames ( notinkaja_luad) = c("gene.id", "gene")
+
+kaja = rbind ( kaja, notinkaja_luad)
+
+
 data = readRDS("/ehome/resource/public/gdac/GDAC.LUAD.rds" )
 t_index = data$t_index
 cpm = data$cpm
@@ -2668,12 +2696,18 @@ freq = freq [ order ( freq$Freq, decreasing = T ), ]
 
   * how many genes have the following criteria? 
     + Genes that have __HR < 1  ( that is increase expression is protective)__
-    + only genes that are __significant in KRAS BUT not WT__
+    + only genes that are __significant Hazard in KRAS grou BUT not WT__
   * the following censors are analyzed: "OS","DSS","DFI","PFI"
     + 4 different survival were completed here.
     + OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car), PFI as well as DFI, progression and disease free
 
 ```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+freq = data.frame ( table ( onlykras [ , c("censor", "type")]))
+freq = freq [ order ( freq$Freq, decreasing = T ), ]
+
+freq = data.frame ( table ( onlykras [ , c("censor", "type")]))
+freq = freq [ order ( freq$Freq, decreasing = T ), ]
 
 kable( freq  , format = "html" , row.names = F, caption = "Total frequency" ) %>% kable_classic(full_width = F, position = "center")
 
@@ -3048,6 +3082,7 @@ or_hist + or_pie + plot_layout(widths = c(3,1))
 
   * all significant genes. 
   * ranked by OR low to high
+
 
 
 ```{r}
@@ -3688,7 +3723,6 @@ sclinmain = read.table(
 ```
 
 
-
 ```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
 
 or_df = or_df[ order (or_df$class, -or_df$OR, decreasing=T), ]
@@ -3704,6 +3738,63 @@ DT::datatable(or_df,
 
 ```
 
+#### Pie
+  
+  * significant ODD ratio 
+  * all genes are significantly correlated with UHRF1 
+  * labels indicates if it also anticorrelates with KRAS 
+
+```{r}
+
+# show top oadd ratios. 
+# label those genes that are also correlated with KRAS 
+or_df$kras_urhf1 = ifelse ( or_df$gene %in% cor_kras_urhf1$gene, "yes", "no") 
+dim ( or_df [ or_df$gene %in% cor_kras_urhf1$gene, ] )
+dim ( or_df  )
+or_df_anti_urhf1_kras = or_df [ or_df$gene %in% cor_kras_urhf1$gene, ]
+
+tally = data.frame ( table (or_df[ , c("class", "kras_urhf1")] ))
+tally$per = tally$Freq / sum ( tally$Freq)
+tally$label = paste0 ( tally$class," ", tally$kras_urhf1)
+tally$label = gsub ( "high", "ODD > 1", tally$label )
+tally$label = gsub ( "low", "ODD < 1", tally$label )
+
+tally$label = gsub ( "yes", "anti KRAS", tally$label )
+tally$label = gsub ( "no", "no KRAS", tally$label )
+
+
+odd_tally_plot = ggplot(data = tally,
+       aes(x = "1", y = per, fill = label)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = Freq  ),
+            position = position_stack(vjust = 0.5),
+            color = "grey20", size = 12, fontface = "bold"  ) +
+  coord_polar(theta = "y" ) +
+
+  theme_void() +
+  theme(legend.position = "none",
+        legend.direction = "vertical")+  
+
+  theme ( legend.text      =element_text(size=12),
+          legend.title = element_text(size=12) ) +
+  geom_label(aes(x = 1.55, label = label), 
+             position = position_stack(vjust = 0.5) 
+             ,label.padding = unit(0.5, "lines")
+             , size = 6
+             ) + scale_fill_manual(values=brewer.pal(6, "Set2")   )
+
+
+
+
+
+```
+
+```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
+
+
+odd_tally_plot
+
+```
 
 ### HR with multiple censors
 
