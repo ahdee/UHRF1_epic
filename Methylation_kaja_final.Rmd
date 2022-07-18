@@ -2986,6 +2986,7 @@ kable( surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "PFI" & surv_
 
 ```{r}
 library ( stargazer )
+options(scipen=999)
 # probit model 
 # the table output above gives the "genotype" 
 table ( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$df$genome )
@@ -3001,7 +3002,9 @@ study_this = unique ( row.names ( tally_cor ) )
 
 or_df = data.frame ()
 
-for ( gg in study_this){
+# add KRAS and UHRF1 to the mix but remove it later 
+
+for ( gg in unique ( c (study_this, "KRAS", "UHRF1") ) ){
   count_mini  =  data.frame ( t ( data$cpm[row.names ( data$cpm) == gg ,  ] ) )
   if ( ncol ( count_mini) == 0 ) { next; }
   print ( gg )
@@ -3030,11 +3033,16 @@ for ( gg in study_this){
   or_df = rbind ( or_df, df[ 4, ])
 }
 
-    
+
+or_df_ex =   or_df[ or_df$gene %in% c( "KRAS", "UHRF1"  ), ] 
+
+or_df = or_df[ ! or_df$gene %in% c( "KRAS", "UHRF1"  ), ] 
+
+
 or_df = or_df[ or_df$p.value < .05, ] 
 or_df$class = ifelse ( or_df$OR < 1, "low", "high")
 
-table ( or_df$class)  
+table ( or_df$class )  
 
 # histogram 
 
@@ -3507,7 +3515,8 @@ wrapper.surv = function(test.gene, mutation, qn=.75, counts=tumor, mut.table=xen
                   all.kp = aa.hr.plot, 
                   all.cox = all.cox, test.ph=test.ph,
                   survival.all = plot.all, 
-                  df = ss.all
+                  df = ss.all,
+                  extplots = list ( joybee = joybee, bee=bee)
   ))
   
 }
@@ -3924,14 +3933,13 @@ for ( gene in  unique ( c ( tophr$gene  )   )  ){
 
 if ( 1 > 2) {
 
-
+# urhf1 only 
   
 df = data$cpm [row.names ( data$cpm  ) ==  "UHRF1" , ,drop=F]
 df =   df[ , t_index]
   
   # hold
 
- plots [[ "UHRF1"  ]] = 
 results2 = wrapper.surv ( test.gene= "UHRF1"
                           ,mutation=mut.this
                           ,qn=.75
@@ -3950,6 +3958,8 @@ results2 = wrapper.surv ( test.gene= "UHRF1"
   #results2$plot.wt$grobs[[cen[ 2 ]]] , ncol=3 ) 
 
 # paper 
+library ( ggpval )
+ggpval::add_pval(results2$extplots$bee, pairs = list(c(1, 2)), test='t.test')
 
 grid.arrange(
    results2$plot.mut$grobs[[cen[2]]], 
@@ -3976,7 +3986,7 @@ dev.off()
 
 ### Single TSG Gene {.tabset}
 
-```{r fig=TRUE,fig.width=12, fig.height=12, echo=FALSE, include=TRUE, results='asis' }
+```{r fig=TRUE,fig.width=9, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
 
 for ( id in names ( plots)  ){
    
@@ -3999,6 +4009,12 @@ cat ( "\n\n")
 
 ```
 
+### UHRF1 survival
+
+```{r fig=TRUE,fig.width=9, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
+
+
+```
 
 
 
@@ -4204,9 +4220,9 @@ dev.off()
 ```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
 
 
-klist = c ( "FHL1", "DLC1", "DUSP22", "LIMD1", "AXIN2", "PTEN", "HBP1", "NR4A1", "NR4A3", "CUX1", "CACNA2D3", "BNIP3L" ) 
+klist = c ( "FHL1", "DLC1", "DUSP22", "LIMD1", "AXIN2", "PTEN", "HBP1", "NR4A1", "NR4A3", "CUX1", "CACNA2D3", "BNIP3L", "KRAS" ) 
 
-cpm2 = cpm 
+cpm2 = data.frame ( t ( data$cpm[ unique ( c ( "UHRF1", klist)) , ])) 
 row.names ( cpm2 ) = gsub ( ".$", '',  row.names ( cpm2 )  ) 
 cpm2 = merge ( results2$df[ , c("genome", "sample")] , cpm2, by.x="sample", by.y="row.names"  )
 
@@ -4227,6 +4243,12 @@ for ( y in klist ){
   cat('\n\n')
 }
 
+
+
+
+```
+
+```{r}
 
 
 
