@@ -2400,7 +2400,7 @@ p
 
 
 x= "UHRF1"
-y= "SELENBP1"
+y= "CDKN2A"
 
 ggplot(cpm, aes_string(x=x, y=y )) +
   geom_point(position = position_jitter(width = 0.5, height = 0.5)) + 
@@ -2561,6 +2561,7 @@ kable( tally_cor  , format = "html" , row.names = T, caption = "Negatively corre
 
 cpm_kras = data$cpm
 cpm_kras = cpm_kras [ row.names ( cpm_kras ) %in% unique ( c ( "KRAS", as.character ( row.names ( tally_cor) )) ), ]
+cpm_kras = data.frame( t ( cpm_kras))
 
 cpm_kras = cpm_kras [ , unique ( c ( "KRAS", names ( cpm_kras)  ) ) ]
 
