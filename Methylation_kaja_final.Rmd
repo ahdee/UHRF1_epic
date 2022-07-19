@@ -1077,22 +1077,29 @@ post$tsne =  ggplot(df1, aes(x, y, shape = group )) +
 cpg.pval =   result[[res]]$result$P.Value
 names ( cpg.pval ) =   result[[res]]$result$gene
 
-go1 = methylRRA(cpg.pval = cpg.pval, method = "GSEA", 
-                    minsize = 50, maxsize = 500, GS.type= c( "GO") , array.type = "EPIC" )
 
+
+
+#go1 = methylRRA(cpg.pval = cpg.pval, method = "GSEA", 
+ #                   minsize = 50, maxsize = 5000, GS.type= NULL, GS.list = pathgsea  , array.type = "EPIC" )
+
+go1 = methylRRA(cpg.pval = cpg.pval, method = "GSEA", 
+                    minsize = 50, maxsize = 500, GS.type= c( "GO"), array.type = "EPIC"  )
+ 
 kegg1 = methylRRA(cpg.pval = cpg.pval, method = "GSEA", 
-                    minsize = 50, maxsize = 500, GS.type= c( "KEGG"), array.type = "EPIC"  )
+                    minsize = 50, maxsize = 5000, GS.type= c( "KEGG"), array.type = "EPIC"  )
 reactome1 = methylRRA(cpg.pval = cpg.pval, method = "GSEA", 
-                    minsize = 50, maxsize = 500, GS.type= c( "Reactome"), array.type = "EPIC"  )
+                    minsize = 50, maxsize = 5000, GS.type= c( "Reactome"), array.type = "EPIC"  )
 
 head(go1, 10)
 head(kegg1, 10)
 head(reactome1, 10)
 
 
-post$gsea$go = plot.gsea_meth (go1[ go1$pvalue < .05 & go1$padj < .05, ])
-post$gsea$kegg = plot.gsea_meth (kegg1[ kegg1$pvalue < .05 & kegg1$padj < .05, ])
-post$gsea$reactome = plot.gsea_meth (reactome1[ reactome1$pvalue < .05 & reactome1$padj < .05, ])
+
+post$gsea$go = plot.gsea_meth (go1[ go1$pvalue < .05 & go1$padj < .05, ], 12)
+post$gsea$kegg = plot.gsea_meth (kegg1[ kegg1$pvalue < .05 & kegg1$padj < .05, ], 12)
+post$gsea$reactome = plot.gsea_meth (reactome1[ reactome1$pvalue < .05 & reactome1$padj < .05, ], 12)
 
 
 # perform ontology 
@@ -1385,14 +1392,17 @@ for ( gg in   names ( result[[nm]]$post$gsea )  ) {
     
     # get annotated leading ednge 
 
-     cat("##### Genes ", gg, " \n")
+     cat("##### Table ", gg, " \n")
     print(htmltools::tagList(  DT::datatable(  result[[nm]]$post$gsea[[gg]]$df , rownames = F, filter= list ( position="top", clear = FALSE )  
                                 , extensions = 'Buttons'
                                       , options = list(dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
-                                                 , autoWidth = T
+                                                 , autoWidth = F
                                                  , scrollX=T, className = 'dt-left') )  )) 
      cat('\n\n')
     
+     addWorksheet(wb, paste0(nm, "_", gg,"_GSEA") )
+     writeData(wb, paste0(nm, "_", gg,"_GSEA"),  result[[nm]]$post$gsea[[gg]]$df )
+     
 }
 
 
@@ -1411,10 +1421,19 @@ for ( gg in c ( names ( result[[nm]]$post$hyper$df)  )){
     print ( result[[nm]]$post$hyper$plots[[gg]]$plot  )
     cat('\n\n')
     
-    #addWorksheet(wb, paste0(nm,"_hyper_", gg ) )
-   #writeData(wb, paste0(nm,"_hyper_", gg ) , result[[nm]]$hyper$plots[[gg]]$df  )
-   
     
+    cat("##### Table ", gg, " \n")
+    print(htmltools::tagList(  DT::datatable(  result[[nm]]$post$hyper$df[[gg]], rownames = F, filter= list ( position="top", clear = FALSE )  
+                                , extensions = 'Buttons'
+                                      , options = list(dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+                                                 , autoWidth = F
+                                                 , scrollX=T, className = 'dt-left') )  )) 
+     cat('\n\n')
+     
+     addWorksheet(wb, paste0(nm, "_", gg,"_ORA") )
+     writeData(wb, paste0(nm, "_", gg,"_ORA"),  result[[nm]]$post$hyper$df[[gg]] )
+     
+     
 }
 
 
@@ -1842,7 +1861,7 @@ result_var$kras$title = " siKRAS_vs_siNeg"
 
 
 
-for ( res in names ( result_var)){
+for ( res in names ( result_var)   ){
   
 result_var[[res]]$post = plot.post ( result.gene=result_var[[res]]$result, g1="Group", g2="Group" 
                              , new.key=result_var[[res]]$key, r.sub=rsub, exp.group='Group'
@@ -1946,7 +1965,7 @@ names ( cpg.pval2 ) = result_var[[res]]$result$gene
 
 
 
-go2= methylRRA(cpg.pval = cpg.pval2, method = "GSEA", 
+go2= methylRRA (cpg.pval = cpg.pval2, method = "GSEA", 
                     minsize = 50, maxsize = 500, GS.type= c( "GO") , array.type = "EPIC"  )
 
 kegg2 = methylRRA(cpg.pval = cpg.pval2, method = "GSEA", 
@@ -1954,12 +1973,16 @@ kegg2 = methylRRA(cpg.pval = cpg.pval2, method = "GSEA",
 reactome2 = methylRRA(cpg.pval = cpg.pval2, method = "GSEA", 
                     minsize = 50, maxsize = 500, GS.type= c( "Reactome") , array.type = "EPIC" )
 
+#hall2 = methylRRA(cpg.pval = cpg.pval2, method = "GSEA", 
+ #                   minsize = 50, maxsize = 500, GS.type= c( "Hallmark") , array.type = "EPIC" )
+
+
 
 result_var[[res]]$post$gsea$go = plot.gsea_meth (go1[ go2$pvalue < .05 & go2$padj < .05, ], thres = 10 ) 
 result_var[[res]]$post$gsea$kegg = plot.gsea_meth ( kegg2 [ kegg2$pvalue < .05 & kegg2$padj < .05, ], thres = 10 )
 result_var[[res]]$post$gsea$reactome = plot.gsea_meth (reactome2[ reactome2$pvalue < .05 & reactome2$padj < .05, ], thres=10)
 
-
+result_var[[res]]$post$gsea$tables = list (go2=go2, kegg2=kegg2, reactome2=reactome2) 
 
 
 ## hyper geometric 
