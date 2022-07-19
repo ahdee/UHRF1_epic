@@ -99,7 +99,7 @@ library(org.Hs.eg.db)
 library(VennDiagram)
 
 require(reshape)
-
+library ( ggpval )
 library(EpiDISH)
 data(centDHSbloodDMC.m)
 
@@ -1560,6 +1560,133 @@ dm_class = ggplot(freq_class, aes(fill=class, y=Freq, x=group)) +
 
 ```
 
+
+```{r}
+
+# add ERV here 
+# first get from ucsc repeat masker and coordinates. 
+library (  GenomicRanges )
+
+erv_ele = read.table ( "./input/ERV_repeat.tsv" , sep="\t", header=T,stringsAsFactors = FALSE,
+                        na.strings=".", quote = "", fill = TRUE, skip=1, comment.char = "")
+
+erv_ele = erv_ele[ , c("genoName", "genoStart", "genoEnd", "strand")]
+colnames ( erv_ele ) = c( "chr", "start", "end","strand")
+# remove weird chromosomes 
+erv_ele = erv_ele[ ! grepl ( "_", erv_ele$chr ), ]
+unique ( erv_ele$chr)
+nrow ( erv_ele )
+
+erv_ele = makeGRangesFromDataFrame(erv_ele,
+                         keep.extra.columns=FALSE,
+                         ignore.strand=TRUE,
+                         seqinfo=NULL,
+                         seqnames.field=c("chr"),
+                         start.field="start",
+                         end.field=c("end"),
+                         strand.field="strand",
+                         starts.in.df.are.0based=FALSE
+                         )
+
+# get EPIC annotations 
+ann850k_erv = ann850k [   , c ( "chr", "pos", "strand", "Name") ] 
+ann850k_erv = data.frame(ann850k_erv@listData )
+
+
+# strand don't matter since we are are getting 50 bp up and down symtrically 
+# we keep the range small -1 * + 1+ 
+ann850k_erv$start = ann850k_erv$pos - 1
+ann850k_erv$end = ann850k_erv$pos + 1
+colnames ( ann850k_erv )[ which ( colnames ( ann850k_erv) == "Name")] = "cpg_probe"
+ann850k_erv$pos = NULL 
+
+
+ann850k_erv = makeGRangesFromDataFrame( ann850k_erv[ , c("chr", "start","end","cpg_probe")],
+                         keep.extra.columns=TRUE,
+                         #ignore.strand=TRUE,
+                         seqinfo=NULL,
+                         seqnames.field=c("chr"),
+                         start.field="start",
+                         end.field=c("end"),
+                         strand.field="strand",
+                         starts.in.df.are.0based=FALSE
+                         )
+
+# find all probes that that sits within the ERV site 
+
+type2 = findOverlaps(query = ann850k_erv, subject = erv_ele, type = 'within')
+
+
+type2.df = data.frame(ann850k_erv[queryHits(type2),], erv_ele[subjectHits(type2),])
+
+head ( type2.df)
+
+# type2.df and erv_probes now contains all ERV elements. 
+erv_probes = unique ( as.character ( type2.df$cpg_probe ) )
+
+# calculate stack plot here with chi square. We want to see if there is a global methylation decrease in 
+# siUHRF1 treatment 
+
+
+# we don't use filter because filter has removed duplicated genes; here we want to work exclusivel with coordinates
+
+freq_erv = data.frame ( table ( 
+  result$uhrf1$post$data[result$uhrf1$post$data$Name %in%  erv_probes,  ]$class ) 
+  
+  )
+
+
+freq_erv2 = data.frame ( table ( result$kras$post$data[result$kras$post$data$Name %in%  erv_probes,  ] $class 
+) )
+
+
+freq_erv = freq_erv[freq_erv$Var1 != "no-change", ]
+freq_erv2 = freq_erv2[freq_erv2$Var1 != "no-change", ]
+
+freq_erv$group = "siUHRF1"
+freq_erv2$group = "siKRAS"
+
+freq_erv = rbind ( freq_erv, freq_erv2)
+colnames ( freq_erv)[1] = "class"
+
+
+
+
+cd =  data.frame ( dcast( freq_erv
+                          , class   ~ group, value.var= "Freq"  ) )
+
+row.names ( cd ) = cd$class
+cd$class = NULL 
+
+set.seed(123)
+chi = chisq.test(cd, simulate.p.value = T)
+
+
+
+erv_feq_plot = ggplot(freq_erv, aes(fill=class, y=Freq, x=group)) + 
+  geom_bar(position="fill", stat="identity") +  # color=""
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black")) +
+  ylab("") + 
+  xlab("") + 
+  # scale_color_manual(values= rep("black", 13) ) +
+  scale_fill_manual(values=c(up="#c2684f",down="#6fab57") ) + ggtitle ( "DM direction") +
+  theme(legend.position="right",  legend.key = element_blank(),
+        
+        axis.text.y = element_text(size= 25 ),
+        axis.text.x = element_text(size= 25, angle=0 ),
+        #axis.title.x = element_text(size=20),
+        
+        axis.title.y     = element_text(size=20), 
+        legend.text      =element_text(size=12)
+  ) +  ggtitle ( paste0 ( "chisq: ", round ( chi$p.value, 4) ) )
+
+
+
+
+```
+
 ### Global trends {.tabset}
 
 #### Bar ( median by chr )
@@ -1585,6 +1712,20 @@ pdf(paste0(paper_fig, "/global_stack_plot.pdf"), width=6, height=7)
 dm_class
 dev.off()
 
+
+
+```
+
+#### DM trends for ERV
+  * Are do probes on ERV elements show similar trend? 
+   + Method: ERV coordinates donwloaded from UCSC repeatMasker. Only Family of ERV elements were included, LINC, SINE were excluded. 
+   + Each position of Cpg probes ( from EPIC plateform) were added and subtracted by 1 bp  
+   + These probes were chosen if the geneomic position fall within the range of ERV.  
+   + however it is important to note that even if these result show that ERV may be invovled it IS NOT exclusive ERV regions and that its most likely a global event.  
+
+```{r fig=TRUE,fig.width=6, fig.height=7.5, echo=FALSE, include=TRUE, results='asis'}
+
+erv_feq_plot
 
 
 ```
@@ -3931,55 +4072,7 @@ for ( gene in  unique ( c ( tophr$gene  )   )  ){
 
 ```{r}
 
-if ( 1 > 2) {
 
-# urhf1 only 
-  
-df = data$cpm [row.names ( data$cpm  ) ==  "UHRF1" , ,drop=F]
-df =   df[ , t_index]
-  
-  # hold
-
-results2 = wrapper.surv ( test.gene= "UHRF1"
-                          ,mutation=mut.this
-                          ,qn=.75
-                          ,counts=df
-                          , mut.table = xena.mut
-                          , sclin=sclinmain, breakt = 1200
-)
- 
- # plot single 
- # grid.arrange ( results2$plot.mut$grobs[[cen[2]]]$grobs[[1]]$grobs[[1]] )
- 
-
-
-#grid.arrange ( 
- # results2$plot.mut$grobs[[cen[2]]] , 
-  #results2$plot.wt$grobs[[cen[ 2 ]]] , ncol=3 ) 
-
-# paper 
-library ( ggpval )
-ggpval::add_pval(results2$extplots$bee, pairs = list(c(1, 2)), test='t.test')
-
-grid.arrange(
-   results2$plot.mut$grobs[[cen[2]]], 
-     results2$plot.wt$grobs[[cen[2]]], results2$joybee$grobs[[2]] , ncol=3
-)
-
-
-#plots_exp[[ "UHRF1"   ]] = grid.arrange (  results2$joybee )
-
-pdf(paste0(paper_fig, "/suvival.pdf"), width=15, height=7.02)
-
-grid.arrange(
-   results2$plot.mut$grobs[[cen[2]]]$grobs[[1]] , 
-     results2$plot.wt$grobs[[cen[2]]]$grobs[[1]], results2$joybee$grobs[[2]] , ncol=3
-)
-
-dev.off()
-
-
-}
 
 ```
 
@@ -4012,6 +4105,61 @@ cat ( "\n\n")
 ### UHRF1 survival
 
 ```{r fig=TRUE,fig.width=9, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
+
+
+
+# urhf1 only 
+  
+df = data$cpm [row.names ( data$cpm  ) ==  "UHRF1" , ,drop=F]
+df =   df[ , t_index]
+  
+  # hold
+
+results2 = wrapper.surv ( test.gene= "UHRF1"
+                          ,mutation=mut.this
+                          ,qn=.75
+                          ,counts=df
+                          , mut.table = xena.mut
+                          , sclin=sclinmain, breakt = 1200
+)
+ 
+ # plot single 
+ # grid.arrange ( results2$plot.mut$grobs[[cen[2]]]$grobs[[1]]$grobs[[1]] )
+ 
+
+
+#grid.arrange ( 
+ # results2$plot.mut$grobs[[cen[2]]] , 
+  #results2$plot.wt$grobs[[cen[ 2 ]]] , ncol=3 ) 
+
+# paper 
+
+joy_surv = ggpval::add_pval(results2$extplots$bee, pairs = list(c(1, 2)), test='t.test')
+
+grid.arrange(
+   results2$plot.mut$grobs[[cen[2]]], 
+     results2$plot.wt$grobs[[cen[2]]], joy_surv, ncol=3
+)
+
+
+#plots_exp[[ "UHRF1"   ]] = grid.arrange (  results2$joybee )
+
+
+if ( 1 > 2) {
+pdf(paste0(paper_fig, "/suvival.pdf"), width=15, height=7.02)
+
+grid.arrange(
+   results2$plot.mut$grobs[[cen[2]]], 
+     results2$plot.wt$grobs[[cen[2]]], joy_surv, ncol=3
+)
+
+
+dev.off()
+
+
+}
+
+
 
 
 ```
