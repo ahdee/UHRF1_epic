@@ -2201,12 +2201,177 @@ result_var[[res]]$post$sig_chr = ggplot(freqvar, aes(Chr, Freq, fill=class)) +
 ```
 
 
-### Extra Pathways {.tabset}
+
+
 
 ```{r}
 # looking for pathways related to development/morphonesis/stem cells 
+rev1 = result[['uhrf1']]$post$gsea[[ 'go'  ]]$df
+rev1 = rev1 [ grepl ( "development|morphog|stem cell|progenitor|differentiation", rev1$Description), ]
+head ( rev1[ , c("ID","Description", "NES","pvalue","padj") ])
+
+write.table(rev1[ , c("ID","padj") ]
+,paste0( "./out/forcytoscape_gsea_development.txt"), row.names=F, col.names=T, append = FALSE, sep = "\t",quote=FALSE)
+
+
+# write everything. 
+allgsea = rbind ( result[['uhrf1']]$post$gsea[[ 'go'  ]]$df, result[['uhrf1']]$post$gsea[[ 'reactome'  ]]$df )
+allgsea = rbind ( allgsea, result[['uhrf1']]$post$gsea[[ 'kegg'  ]]$df  )
+write.table(allgsea[ , c("ID","padj") ]
+,paste0( "./out/all_gsea.txt"), row.names=F, col.names=T, append = FALSE, sep = "\t",quote=FALSE)
+
+
+
+
+# import this into cluego to calculate kappa scores and group this is the result 
+
+cluego1 = read.xlsx("https://www.dropbox.com/s/y1k52a7ailqydxu/gsea_uhrf1_development_stemcell_table.xlsx?dl=1")
+cluegototal = nrow ( cluego1 )
+
+cluego1b = data.frame()
+
+for ( c in unique ( cluego1$GOGroups) ){
+  group = c 
+  c = cluego1[ cluego1$GOGroups == c, ] 
+  topc = rev1[ rev1$ID %in% c$GOID, ] 
+  topc = topc [ order ( topc$padj , -topc$NES), ]
+  topc$core_enrichment = NULL 
+  cper = round ( nrow ( c ) / cluegototal, 2) * 100
+  cluego1b = rbind ( cluego1b 
+                     , data.frame(group=topc$Description[1],total=nrow(c), percent=cper , oldgroup=group)
+                     )
+}
+
+cluego1b = cluego1b[ order ( -cluego1b$total), ]
+cluego1b = cluego1b[cluego1b$group != "No Group", ]
+cluego1b = cluego1b[ cluego1b$total > 5, ]
+#cluego1b$group = ifelse ( cluego1b$oldgroup=="None", "No Group", cluego1b$group) 
+cluego1b$group = factor ( cluego1b$group, levels = as.character ( rev ( cluego1b$group) ) )
+
+
+gseaGo_devel_plot= ggplot(cluego1b , aes( x = group, total )) + 
+  geom_col( fill="steelblue" ) + 
+  coord_flip() +
+   theme(legend.position="none",  legend.key = element_blank(),
+          # element_blank()
+          axis.text.y = element_text(size= 25 ),
+          axis.text.x =  element_text(size= 25 ),
+          axis.title.x = element_text(size=25),
+          axis.title.y     = element_text(size=25), 
+          legend.text      =element_text(size=25),
+          legend.title = element_text(size=25),
+          plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
+          # hjust centers the title
+    ) + theme(panel.grid.major = element_blank()
+              , panel.grid.minor = element_blank()
+              ,panel.background = element_blank()
+              , axis.line = element_line(colour = "black") # plot border
+    ) 
+ 
+
+
+
 
 ```
+
+### Extra Pathways {.tabset}
+
+  * Reviewer was wondering why pathways did not show certain polycomb group proteins (PCG)related pathways such as, ones for development, morphogenesis or stem cell/progenitor and differentiation. This is because we did not show most pathways. Here I subsetted GO pathways in our GSEA analysis and found `r nrow ( rev1)` invovled.  
+
+#### plot PCG
+
+  * we extracted relevant pathways and group pathways using cluego 
+  * only groups with >5 pathways are shown
+  * each group is described by the pathway with the lowest fdr follow by highest enrichment score. 
+
+```{r fig=TRUE,fig.width=8, fig.height=6.5, echo=FALSE, include=TRUE, results='asis' }
+gseaGo_devel_plot
+```
+
+#### Table 
+
+```{r fig=TRUE,fig.width=12, fig.height=9, echo=FALSE, include=TRUE, results='asis' }
+DT::datatable(rev1[ , c("ID","Description", "NES","pvalue","padj") ], 
+              filter= list ( position="top", clear = FALSE )  
+                                , extensions = 'Buttons'
+                                      , options = list(dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+                                                 , autoWidth = F
+                                                 , scrollX=T, className = 'dt-left'
+                                                 , pageLength = 10
+                                                 ) 
+              )
+```
+  
+
+```{r}
+# do total now 
+cluegoALL = read.xlsx("https://www.dropbox.com/s/fhw99owu251wjyn/gsea_all_cytoscape.xlsx?dl=1")
+cluegototal = nrow ( cluegoALL )
+
+cluegoALLb = data.frame()
+
+for ( c in unique ( cluegoALL$GOGroups) ){
+  group = c 
+  c = cluegoALL[ cluegoALL$GOGroups == c, ] 
+  topc = allgsea[ allgsea$ID %in% c$GOID, ] 
+  topc = topc [ order ( topc$padj , -topc$NES), ]
+  topc$core_enrichment = NULL 
+  cper = round ( nrow ( c ) / cluegototal, 2) * 100
+  cluegoALLb = rbind ( cluegoALLb 
+                     , data.frame(group=topc$Description[1],total=nrow(c), percent=cper , oldgroup=group
+                                  , NES=topc$NES[1], pv=topc$padj[1]
+                                  )
+  )
+}
+
+cluegoALLb = cluegoALLb[ order ( -cluegoALLb$total), ]
+
+
+cluegoALLb = cluegoALLb[cluegoALLb$group != "No Group", ]
+cluegoALLb = cluegoALLb[ cluegoALLb$total > 5, ]
+
+
+#cluegoALLb$group = ifelse ( cluegoALLb$oldgroup=="None", "No Group", cluegoALLb$group) 
+cluegoALLb$group = factor ( cluegoALLb$group, levels = as.character ( rev ( cluegoALLb$group) ) )
+
+
+gseaGo_all_plot= ggplot(cluegoALLb , aes( x = group, log2(total) )) + 
+  geom_col( aes ( fill= NES ) ) + 
+  coord_flip() +
+  theme(legend.position="right",  legend.key = element_blank(),
+        # element_blank()
+        axis.text.y = element_text(size= 25 ),
+        axis.text.x =  element_text(size= 25 ),
+        axis.title.x = element_text(size=25),
+        axis.title.y     = element_text(size=25), 
+        legend.text      =element_text(size=25),
+        legend.title = element_text(size=25),
+        plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
+        # hjust centers the title
+  ) + theme(panel.grid.major = element_blank()
+            , panel.grid.minor = element_blank()
+            ,panel.background = element_blank()
+            , axis.line = element_line(colour = "black") # plot border
+  ) + scale_fill_gradient2(low = "#c5dce6", 
+                       high = "#308bb3", 
+                       mid = "#00b1ff",
+                       midpoint = median(cluegoALLb$NES)
+  )
+
+```
+
+#### plot PCG
+
+  * we do a total GSEA pathways, this includes kegg, go, and reactome 
+  * only groups with >5 pathways are shown
+  * each group is described by the pathway with the lowest fdr follow by highest enrichment score.
+  * total is represented as log2 ( total pathways for the particular group)
+
+```{r fig=TRUE,fig.width=12, fig.height=6.5, echo=FALSE, include=TRUE, results='asis' }
+gseaGo_all_plot
+
+```
+
 
 
 ## CpG variablity {.tabset}
