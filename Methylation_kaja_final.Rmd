@@ -1978,11 +1978,11 @@ reactome2 = methylRRA(cpg.pval = cpg.pval2, method = "GSEA",
 
 
 
-result_var[[res]]$post$gsea$go = plot.gsea_meth (go1[ go2$pvalue < .05 & go2$padj < .05, ], thres = 10 ) 
+result_var[[res]]$post$gsea$go = plot.gsea_meth (go2[ go2$pvalue < .05 & go2$padj < .05, ], thres = 10 ) 
 result_var[[res]]$post$gsea$kegg = plot.gsea_meth ( kegg2 [ kegg2$pvalue < .05 & kegg2$padj < .05, ], thres = 10 )
 result_var[[res]]$post$gsea$reactome = plot.gsea_meth (reactome2[ reactome2$pvalue < .05 & reactome2$padj < .05, ], thres=10)
 
-result_var[[res]]$post$gsea$tables = list (go2=go2, kegg2=kegg2, reactome2=reactome2) 
+# result_var[[res]]$post$gsea$tables = list (go2=go2, kegg2=kegg2, reactome2=reactome2) 
 
 
 ## hyper geometric 
@@ -2862,436 +2862,6 @@ freq = freq [ order ( freq$Freq, decreasing = T ), ]
 ```
 
 
-
-## Survival {.tabset}
-
-
-### KRAS depedent tabulation
-
-  * how many genes have the following criteria? 
-    + Genes that have __HR < 1  ( that is increase expression is protective)__
-    + only genes that are __significant Hazard in KRAS grou BUT not WT__
-  * the following censors are analyzed: "OS","DSS","DFI","PFI"
-    + 4 different survival were completed here.
-    + OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car), PFI as well as DFI, progression and disease free
-
-```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
-
-freq = data.frame ( table ( onlykras [ , c("censor", "type")]))
-freq = freq [ order ( freq$Freq, decreasing = T ), ]
-
-freq = data.frame ( table ( onlykras [ , c("censor", "type")]))
-freq = freq [ order ( freq$Freq, decreasing = T ), ]
-
-kable( freq  , format = "html" , row.names = F, caption = "Total frequency" ) %>% kable_classic(full_width = F, position = "center")
-
-
-```
-
-### HR table 
-
-  * you can sort by HR which will give you the top censor gene that is protective, lower is more protective
-  * you can sort by just censor, so for example if you chose just OS then this will give you only Overall survival 
-
-
-```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
-
-
-
-DT::datatable(onlykras,
-              caption = '', rownames = F, filter= list ( position="top", clear = FALSE )  , extensions = 'Buttons'
-              , options = list(dom = 'Bfrtip'
-                               , autoWidth = T, scrollX=T, className = 'dt-left', pageLength =50
-              )
-              
-)
-
-
-```
-
-
-
-
-
-### HR table + TSG {.tabset}
-
-  * how many genes have the following criteria? 
-    + Genes that have __HR < 1  ( that is increase expression is protective)__
-    + only genes that are __significant in KRAS BUT not WT__
-  * the following censors are analyzed: "OS","DSS","DFI","PFI"
-    + 4 different survival were completed here.
-    + OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car), PFI as well as DFI, progression and disease free
-  * __ALSO__ in TSG list that correlated negatively with UHRF1
-
-#### Overall Summary 
-
-
-```{r}
-
-library ( cowplot)
-
-# get all sig hazard
-surv_kras_tsg_cor_uhrf1 =  surv[  surv$p.value < .05  , ] 
-# remove any genes that also has wt or all  p < .05
-# removing all will not impact since if the gene has KRAS it will automaticall stay 
-wt_hr_genes = surv_kras_tsg_cor_uhrf1[surv_kras_tsg_cor_uhrf1$type %in% c ( "wt", "all"), ]$gene 
-surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[!surv_kras_tsg_cor_uhrf1$gene %in% wt_hr_genes, ]
-
-
-
-
-
-# subset TSG only. 
-surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[surv_kras_tsg_cor_uhrf1$gene %in% row.names ( tally_cor ),   ]
-# remove dups 
-# HR <1 turn into negative so that whe we sort by highest to lowest absolute the one that is more protected will stay after dup 
-# eg,  HR = -.43, .-33 absolute sort wil keep the .43
-surv_kras_tsg_cor_uhrf1$temp = ifelse(surv_kras_tsg_cor_uhrf1$HR < 1, surv_kras_tsg_cor_uhrf1$HR * -1, surv_kras_tsg_cor_uhrf1$HR)
-surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[ order ( surv_kras_tsg_cor_uhrf1$gene,  surv_kras_tsg_cor_uhrf1$temp, decreasing=T), ]
-# wil not remove duplicates because I will just plot each censor type seperately, leave above in case use in future 
-surv_kras_tsg_cor_uhrf1$temp  = NULL 
-
-surv_kras_tsg_cor_uhrf1$pcolor = ifelse ( surv_kras_tsg_cor_uhrf1$HR < 1, "protective","disruptive")
-pcolor =  c( protective = "#338ab5", disruptive="#8a2949")
-
-labelp =  c ( surv_kras_tsg_cor_uhrf1$CI.95.high  ) 
-
-surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[order ( -surv_kras_tsg_cor_uhrf1$HR), ]
-surv_kras_tsg_cor_uhrf1$gene = factor ( surv_kras_tsg_cor_uhrf1$gene , levels = unique ( surv_kras_tsg_cor_uhrf1$gene))
-
-table ( surv_kras_tsg_cor_uhrf1$censor)
-
-
-surv_kras_tsg_cor_uhrf1_plots = list ()
-
-for ( s in c("OS", "PFI")){
-
-surv_kras_tsg_cor_uhrf1_plots [[s]] = surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == s, ] %>%
-  ggplot(aes(x = HR, 
-             y =  reorder(gene, desc(HR))  
-             )) +
-  # Add point for estimate
-  geom_point(aes(color=pcolor), size=6)+ scale_color_manual(values= pcolor  ) +
-  # Add error bars, use line_typ to set line type
-  geom_errorbar(aes(xmax = CI.95.high,
-                    xmin = CI.95.low,
-                     #lty = line_typ # no need unless you want to do two classes maybe later? 
-                    ),
-                lty = "dashed",
-                show.legend = F,
-                width = 0.02) +
-  # Add estimates values as text
-  geom_text(aes(label = round(HR, 2),
-                 x= HR + .3
-                    ), 
-            # nudge position in x and y directions
-            #nudge_x = 0,
-            nudge_y = 0.2) +
-  # Add dashed vertical line in 0 Difference (y-axis)
-  geom_vline(xintercept=1, lty = "solid") +
-  # Make line for second axis (left side)
-  #geom_vline(xintercept = min_val )  +
-  # Put x axis in the right side and make second axis in bottom
-  scale_x_continuous(position = "top",
-                     sec.axis = sec_axis(~., name = ""),
-                     limits = c(0, 6.5),
-                     expand = c(0,0)) +
-  # Change y axis position and add labs
-  #scale_y_discrete(position = "right",
-   #                labels = df$labs_y) +
-  # Change axis titles
-  labs(x = "Hazard Ratio", y = "Gene") +
-  # Add cowplot theme
-  theme_cowplot()+
-  # Final theme adjustments
-  # Remove ticks and text from bottom secondary axis
-  theme(axis.ticks.x.bottom = element_blank(),
-        axis.text.x.bottom = element_blank(),
-        axis.line = element_line(colour = "black"), legend.position="bottom" ) + ggtitle ( s )
-
-}
-
-```
-
-
-```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
-
-# keep this to display later but will remove duplicate sorting decrease asb ( HR )  
-table_all_surv_kras_tsg_cor_uhrf1 = data.frame ( table ( surv_kras_tsg_cor_uhrf1$censor))
-table_all_surv_kras_tsg_cor_uhrf1 = table_all_surv_kras_tsg_cor_uhrf1[order ( table_all_surv_kras_tsg_cor_uhrf1$Freq, decreasing=T), ]
-kable( table_all_surv_kras_tsg_cor_uhrf1  , format = "html" , row.names = F, caption = "Total frequency" ) %>% kable_classic(full_width = F, position = "center")
-
-```
-
-#### Forest HR plots 
-
-```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
-
-surv_kras_tsg_cor_uhrf1_plots[["OS"]] +  ( surv_kras_tsg_cor_uhrf1_plots[["PFI"]] + ylab("") + theme ( legend.position = "none") )
-
-```
-
-```{r}
-
-## add zheng - combine all negative and see what the results are. 
-
-
-os_genes = surv_kras_tsg_cor_uhrf1[ surv_kras_tsg_cor_uhrf1$HR < 1 & surv_kras_tsg_cor_uhrf1$censor == "OS", ]$gene
-os_genes = unique ( as.character(os_genes))
-
-df = data$cpm [row.names ( data$cpm  ) %in%  os_genes , , drop=F]
-df =   df[ , t_index]
-
-
-
-surv_kras_tsg_cor_uhrf1_ALL_neg_OS  = wrapper.surv ( test.gene= c ( unique ( as.character ( os_genes)  ) )
-                     ,mutation=mut.this
-                     ,qn=.75
-                     ,counts=df
-                     , mut.table = xena.mut
-                     , sclin=sclinmain
-                     , zheng = 1
-                     , groupname = "TSGs AntiCorrelated with UHRF1"
-                     # no need to define censor since function will plot everything. 
-                     # ,  censor="OS", censor.time="OS.time"
-)
-
-
-
-
-
-#grid.arrange( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut)
-#grid.arrange( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.wt)
-
-names ( cen ) = c( "OS","DSS","DFI","PFI")
-
-grid.arrange ( 
-    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut$grobs[[ 1 ]] , 
-    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.wt$grobs[[ 1  ]] , ncol=2 ) 
-
-
-### plot PFI now 
-pfi_genes = surv_kras_tsg_cor_uhrf1[ surv_kras_tsg_cor_uhrf1$HR < 1 & surv_kras_tsg_cor_uhrf1$censor == "PFI", ]$gene
-pfi_genes = unique ( as.character(pfi_genes))
-
-df = data$cpm [row.names ( data$cpm  ) %in%  pfi_genes , , drop=F]
-df =   df[ , t_index]
-
-
-
-surv_kras_tsg_cor_uhrf1_ALL_neg_PFI  = wrapper.surv ( test.gene= c ( unique ( as.character ( pfi_genes)  ) )
-                                                     ,mutation=mut.this
-                                                     ,qn=.75
-                                                     ,counts=df
-                                                     , mut.table = xena.mut
-                                                     , sclin=sclinmain
-                                                     , zheng = 1
-                                                     , groupname = "TSGs AntiCorrelated with UHRF1"
-                                                     # no need to define censor since function will plot everything. 
-                                                     # ,  censor="OS", censor.time="OS.time"
-)
-
-
-grid.arrange ( 
-    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.mut$grobs[[ 4 ]] , 
-    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.wt$grobs[[ 4  ]] , ncol=2 ) 
-
-
-
-
-
-```
-
-#### combined TSG and survival {.tabset}
-
-##### Overall Specific Survival (OS) 
-
-```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
-
-grid.arrange ( 
-    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut$grobs[[ 1 ]] , 
-    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.wt$grobs[[ 1  ]] , ncol=2 ) 
-
-```
-
-##### OS table 
-
-```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
-
-kable( surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "OS" & surv_kras_tsg_cor_uhrf1$gene %in% os_genes, ]
-       , format = "html" , row.names = F, caption = "OS" ) %>% kable_classic(full_width = F, position = "center")
-
-
-```
-
-##### (Progression Free Inverval ) PFI
-
-```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
-
-grid.arrange ( 
-    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.mut$grobs[[ 4 ]] , 
-    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.wt$grobs[[ 4  ]] , ncol=2 ) 
-
-```
-
-
-##### PFI table 
-
-```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
-
-kable( surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "PFI" & surv_kras_tsg_cor_uhrf1$gene %in% pfi_genes, ]
-       , format = "html" , row.names = F, caption = "OS" ) %>% kable_classic(full_width = F, position = "center")
-
-
-```
-
-
-
-
-```{r}
-library ( stargazer )
-options(scipen=999)
-# probit model 
-# the table output above gives the "genotype" 
-table ( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$df$genome )
-# get the annotatoins table. We want age and stage 
-probit_df = surv_kras_tsg_cor_uhrf1_ALL_neg_OS$df [ , c("sample", "sample2", "age.diag","gender","genome","stage")]
-
-# get the counts, tumor only 
-
-
-
-# these are the genes we want to study probit for 
-study_this = unique ( row.names ( tally_cor ) )
-
-or_df = data.frame ()
-
-# add KRAS and UHRF1 to the mix but remove it later 
-
-for ( gg in unique ( c (study_this, "KRAS", "UHRF1") ) ){
-  count_mini  =  data.frame ( t ( data$cpm[row.names ( data$cpm) == gg ,  ] ) )
-  if ( ncol ( count_mini) == 0 ) { next; }
-  print ( gg )
-  colnames(count_mini) = "count"
-  count_mini$sample =  gsub ( "[A-Z]$", "", row.names ( count_mini)  )
-  
-  count_mini = merge(count_mini, probit_df , by.x="sample", by.y = "sample" )
-  count_mini$genome = factor ( count_mini$genome, levels = c("KRAS",'wt' ))
-  
-  count_mini$mutation = ifelse ( count_mini$genome == "KRAS", 1, 0 )
-  count_mini$mutation = factor ( count_mini$mutation, levels= c(1,0))
-  
-  
-  logit = glm(mutation ~ gender + age.diag + count ,  family=binomial(link="logit"), data=count_mini)
-      
-     df= cbind(Estimate=round(coef(logit),4),
-            OR=round(exp(coef(logit)),4), 
-            p.value = coef(summary(logit))[,4]
-            )
-     df = data.frame(df )
-   
-  summary ( logit )    
-  logit.or = exp(coef(logit))
-  
-  df$gene = gg 
-  or_df = rbind ( or_df, df[ 4, ])
-}
-
-
-or_df_ex =   or_df[ or_df$gene %in% c( "KRAS", "UHRF1"  ), ] 
-
-or_df = or_df[ ! or_df$gene %in% c( "KRAS", "UHRF1"  ), ] 
-
-
-or_df = or_df[ or_df$p.value < .05, ] 
-or_df$class = ifelse ( or_df$OR < 1, "low", "high")
-
-table ( or_df$class )  
-
-# histogram 
-
-ccc=c ( low="#d1b543", high="#99755a")  
-cut_here = 1
-msg = ""
-binwidth= 0.20 
-y=.3
-
-
-or_hist = ggplot(or_df, aes(x=OR)) + 
-    geom_histogram(aes(y=(..count..)/sum(..count..), fill=class), colour='white' , alpha=.7 , binwidth= binwidth )+
-    # geom_density(alpha=0, fill="grey") +
-    theme(legend.position="none",  legend.key = element_blank(),
-          # element_blank()
-          axis.text.y = element_text(size= 25 ),
-          axis.text.x =  element_text(size= 25 ),
-          axis.title.x = element_text(size=25),
-          axis.title.y     = element_text(size=25), 
-          legend.text      =element_text(size=25),
-          legend.title = element_text(size=25),
-          plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
-          # hjust centers the title
-    ) + theme(
-              #panel.grid.major = element_blank()
-              #, panel.grid.minor = element_blank()
-              panel.background = element_blank()
-              , axis.line = element_line(colour = "black") # plot border
-    ) + ylab ( "percent") + 
-   geom_vline(xintercept = cut_here, linetype = 2, color = "black") +
-   # annotate(geom = "text", x = cut_here , y = y, label = paste0 ( msg , cut_here ), color = "black", angle = 90, vjust=2.5) + 
-   xlab ("Odd Ratio") + scale_fill_manual(values =ccc) +
-   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
-   theme(legend.position="top", 
-      legend.text      =element_text(size=25),
-      legend.title = element_text(size=25),
-      plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
-      # hjust centers the title
-)
-
-
-tally = data.frame ( table ( or_df$class))
-
-or_pie = make.pie( tally
-                           , name.first="OR class"
-                           , cc = ccc
-                           , leg.pos = "none"
-                           , title = ""
-) 
- 
-
-
-
-or_hist + or_pie + plot_layout(widths = c(3,1))
-
-
-
-
-```
-
-### Odd ratio
-
-  * from the `r nrow ( tally_cor )` genes that anticorrelated with UHRF1 how many of these gene expression are significantly 
-associated with the odds of having a KRAS mutation vs wt-type in patients with lung cancer. 
-  * Odd ratio > 1: increase expression is associated with higher odds of KRAS mutation
-    + example, an oadd ratio of 1.4 means the odds of having a KRAS mutations is 1.4 times greater with every cpm unit incrase in the gene. 
-  * Odd ratio < 1: decrease expression is associated with higher oads of KRAS mutation. 
-  
-    + example, an odd ratio of .4 indicates that thed odds of having a KRAS mutation decreases by a factor 0.4 for every cpm unit increase in the gene 
-#### Histogram 
-
-```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
-
-or_hist + or_pie + plot_layout(widths = c(3,1))
-
-```
-
-#### Table
-
-  * all significant genes. 
-  * ranked by OR low to high
-  * note CDKN1A does have OR < 1 
-
-
-
 ```{r}
 # functions for survival 
 
@@ -3904,6 +3474,438 @@ zhengASC <- function (genes, count, p=.75){
 
 
 ```
+
+
+## Survival {.tabset}
+
+
+### KRAS depedent tabulation
+
+  * how many genes have the following criteria? 
+    + Genes that have __HR < 1  ( that is increase expression is protective)__
+    + only genes that are __significant Hazard in KRAS grou BUT not WT__
+  * the following censors are analyzed: "OS","DSS","DFI","PFI"
+    + 4 different survival were completed here.
+    + OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car), PFI as well as DFI, progression and disease free
+
+```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+freq = data.frame ( table ( onlykras [ , c("censor", "type")]))
+freq = freq [ order ( freq$Freq, decreasing = T ), ]
+
+freq = data.frame ( table ( onlykras [ , c("censor", "type")]))
+freq = freq [ order ( freq$Freq, decreasing = T ), ]
+
+kable( freq  , format = "html" , row.names = F, caption = "Total frequency" ) %>% kable_classic(full_width = F, position = "center")
+
+
+```
+
+### HR table 
+
+  * you can sort by HR which will give you the top censor gene that is protective, lower is more protective
+  * you can sort by just censor, so for example if you chose just OS then this will give you only Overall survival 
+
+
+```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+
+
+DT::datatable(onlykras,
+              caption = '', rownames = F, filter= list ( position="top", clear = FALSE )  , extensions = 'Buttons'
+              , options = list(dom = 'Bfrtip'
+                               , autoWidth = T, scrollX=T, className = 'dt-left', pageLength =50
+              )
+              
+)
+
+
+```
+
+
+
+
+
+### HR table + TSG {.tabset}
+
+  * how many genes have the following criteria? 
+    + Genes that have __HR < 1  ( that is increase expression is protective)__
+    + only genes that are __significant in KRAS BUT not WT__
+  * the following censors are analyzed: "OS","DSS","DFI","PFI"
+    + 4 different survival were completed here.
+    + OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car), PFI as well as DFI, progression and disease free
+  * __ALSO__ in TSG list that correlated negatively with UHRF1
+
+#### Overall Summary 
+
+
+```{r}
+
+library ( cowplot)
+
+# get all sig hazard
+surv_kras_tsg_cor_uhrf1 =  surv[  surv$p.value < .05  , ] 
+# remove any genes that also has wt or all  p < .05
+# removing all will not impact since if the gene has KRAS it will automaticall stay 
+wt_hr_genes = surv_kras_tsg_cor_uhrf1[surv_kras_tsg_cor_uhrf1$type %in% c ( "wt", "all"), ]$gene 
+surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[!surv_kras_tsg_cor_uhrf1$gene %in% wt_hr_genes, ]
+
+
+
+
+
+# subset TSG only. 
+surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[surv_kras_tsg_cor_uhrf1$gene %in% row.names ( tally_cor ),   ]
+# remove dups 
+# HR <1 turn into negative so that whe we sort by highest to lowest absolute the one that is more protected will stay after dup 
+# eg,  HR = -.43, .-33 absolute sort wil keep the .43
+surv_kras_tsg_cor_uhrf1$temp = ifelse(surv_kras_tsg_cor_uhrf1$HR < 1, surv_kras_tsg_cor_uhrf1$HR * -1, surv_kras_tsg_cor_uhrf1$HR)
+surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[ order ( surv_kras_tsg_cor_uhrf1$gene,  surv_kras_tsg_cor_uhrf1$temp, decreasing=T), ]
+# wil not remove duplicates because I will just plot each censor type seperately, leave above in case use in future 
+surv_kras_tsg_cor_uhrf1$temp  = NULL 
+
+surv_kras_tsg_cor_uhrf1$pcolor = ifelse ( surv_kras_tsg_cor_uhrf1$HR < 1, "protective","disruptive")
+pcolor =  c( protective = "#338ab5", disruptive="#8a2949")
+
+labelp =  c ( surv_kras_tsg_cor_uhrf1$CI.95.high  ) 
+
+surv_kras_tsg_cor_uhrf1 = surv_kras_tsg_cor_uhrf1[order ( -surv_kras_tsg_cor_uhrf1$HR), ]
+surv_kras_tsg_cor_uhrf1$gene = factor ( surv_kras_tsg_cor_uhrf1$gene , levels = unique ( surv_kras_tsg_cor_uhrf1$gene))
+
+table ( surv_kras_tsg_cor_uhrf1$censor)
+
+
+surv_kras_tsg_cor_uhrf1_plots = list ()
+
+for ( s in c("OS", "PFI")){
+
+surv_kras_tsg_cor_uhrf1_plots [[s]] = surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == s, ] %>%
+  ggplot(aes(x = HR, 
+             y =  reorder(gene, desc(HR))  
+             )) +
+  # Add point for estimate
+  geom_point(aes(color=pcolor), size=6)+ scale_color_manual(values= pcolor  ) +
+  # Add error bars, use line_typ to set line type
+  geom_errorbar(aes(xmax = CI.95.high,
+                    xmin = CI.95.low,
+                     #lty = line_typ # no need unless you want to do two classes maybe later? 
+                    ),
+                lty = "dashed",
+                show.legend = F,
+                width = 0.02) +
+  # Add estimates values as text
+  geom_text(aes(label = round(HR, 2),
+                 x= HR + .3
+                    ), 
+            # nudge position in x and y directions
+            #nudge_x = 0,
+            nudge_y = 0.2) +
+  # Add dashed vertical line in 0 Difference (y-axis)
+  geom_vline(xintercept=1, lty = "solid") +
+  # Make line for second axis (left side)
+  #geom_vline(xintercept = min_val )  +
+  # Put x axis in the right side and make second axis in bottom
+  scale_x_continuous(position = "top",
+                     sec.axis = sec_axis(~., name = ""),
+                     limits = c(0, 6.5),
+                     expand = c(0,0)) +
+  # Change y axis position and add labs
+  #scale_y_discrete(position = "right",
+   #                labels = df$labs_y) +
+  # Change axis titles
+  labs(x = "Hazard Ratio", y = "Gene") +
+  # Add cowplot theme
+  theme_cowplot()+
+  # Final theme adjustments
+  # Remove ticks and text from bottom secondary axis
+  theme(axis.ticks.x.bottom = element_blank(),
+        axis.text.x.bottom = element_blank(),
+        axis.line = element_line(colour = "black"), legend.position="bottom" ) + ggtitle ( s )
+
+}
+
+```
+
+
+```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+# keep this to display later but will remove duplicate sorting decrease asb ( HR )  
+table_all_surv_kras_tsg_cor_uhrf1 = data.frame ( table ( surv_kras_tsg_cor_uhrf1$censor))
+table_all_surv_kras_tsg_cor_uhrf1 = table_all_surv_kras_tsg_cor_uhrf1[order ( table_all_surv_kras_tsg_cor_uhrf1$Freq, decreasing=T), ]
+kable( table_all_surv_kras_tsg_cor_uhrf1  , format = "html" , row.names = F, caption = "Total frequency" ) %>% kable_classic(full_width = F, position = "center")
+
+```
+
+#### Forest HR plots 
+
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+surv_kras_tsg_cor_uhrf1_plots[["OS"]] +  ( surv_kras_tsg_cor_uhrf1_plots[["PFI"]] + ylab("") + theme ( legend.position = "none") )
+
+```
+
+```{r}
+
+## add zheng - combine all negative and see what the results are. 
+
+
+os_genes = surv_kras_tsg_cor_uhrf1[ surv_kras_tsg_cor_uhrf1$HR < 1 & surv_kras_tsg_cor_uhrf1$censor == "OS", ]$gene
+os_genes = unique ( as.character(os_genes))
+
+df = data$cpm [row.names ( data$cpm  ) %in%  os_genes , , drop=F]
+df =   df[ , t_index]
+
+
+
+surv_kras_tsg_cor_uhrf1_ALL_neg_OS  = wrapper.surv ( test.gene= c ( unique ( as.character ( os_genes)  ) )
+                     ,mutation=mut.this
+                     ,qn=.75
+                     ,counts=df
+                     , mut.table = xena.mut
+                     , sclin=sclinmain
+                     , zheng = 1
+                     , groupname = "TSGs AntiCorrelated with UHRF1"
+                     # no need to define censor since function will plot everything. 
+                     # ,  censor="OS", censor.time="OS.time"
+)
+
+
+
+
+
+#grid.arrange( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut)
+#grid.arrange( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.wt)
+
+names ( cen ) = c( "OS","DSS","DFI","PFI")
+
+grid.arrange ( 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut$grobs[[ 1 ]] , 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.wt$grobs[[ 1  ]] , ncol=2 ) 
+
+
+### plot PFI now 
+pfi_genes = surv_kras_tsg_cor_uhrf1[ surv_kras_tsg_cor_uhrf1$HR < 1 & surv_kras_tsg_cor_uhrf1$censor == "PFI", ]$gene
+pfi_genes = unique ( as.character(pfi_genes))
+
+df = data$cpm [row.names ( data$cpm  ) %in%  pfi_genes , , drop=F]
+df =   df[ , t_index]
+
+
+
+surv_kras_tsg_cor_uhrf1_ALL_neg_PFI  = wrapper.surv ( test.gene= c ( unique ( as.character ( pfi_genes)  ) )
+                                                     ,mutation=mut.this
+                                                     ,qn=.75
+                                                     ,counts=df
+                                                     , mut.table = xena.mut
+                                                     , sclin=sclinmain
+                                                     , zheng = 1
+                                                     , groupname = "TSGs AntiCorrelated with UHRF1"
+                                                     # no need to define censor since function will plot everything. 
+                                                     # ,  censor="OS", censor.time="OS.time"
+)
+
+
+grid.arrange ( 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.mut$grobs[[ 4 ]] , 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.wt$grobs[[ 4  ]] , ncol=2 ) 
+
+
+
+
+
+```
+
+#### combined TSG and survival {.tabset}
+
+##### Overall Specific Survival (OS) 
+
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+grid.arrange ( 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut$grobs[[ 1 ]] , 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.wt$grobs[[ 1  ]] , ncol=2 ) 
+
+```
+
+##### OS table 
+
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+kable( surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "OS" & surv_kras_tsg_cor_uhrf1$gene %in% os_genes, ]
+       , format = "html" , row.names = F, caption = "OS" ) %>% kable_classic(full_width = F, position = "center")
+
+
+```
+
+##### (Progression Free Inverval ) PFI
+
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+grid.arrange ( 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.mut$grobs[[ 4 ]] , 
+    surv_kras_tsg_cor_uhrf1_ALL_neg_PFI$plot.wt$grobs[[ 4  ]] , ncol=2 ) 
+
+```
+
+
+##### PFI table 
+
+```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+kable( surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_cor_uhrf1$censor == "PFI" & surv_kras_tsg_cor_uhrf1$gene %in% pfi_genes, ]
+       , format = "html" , row.names = F, caption = "OS" ) %>% kable_classic(full_width = F, position = "center")
+
+
+```
+
+
+
+
+```{r}
+library ( stargazer )
+options(scipen=999)
+# probit model 
+# the table output above gives the "genotype" 
+table ( surv_kras_tsg_cor_uhrf1_ALL_neg_OS$df$genome )
+# get the annotatoins table. We want age and stage 
+probit_df = surv_kras_tsg_cor_uhrf1_ALL_neg_OS$df [ , c("sample", "sample2", "age.diag","gender","genome","stage")]
+
+# get the counts, tumor only 
+
+
+
+# these are the genes we want to study probit for 
+study_this = unique ( row.names ( tally_cor ) )
+
+or_df = data.frame ()
+
+# add KRAS and UHRF1 to the mix but remove it later 
+
+for ( gg in unique ( c (study_this, "KRAS", "UHRF1") ) ){
+  count_mini  =  data.frame ( t ( data$cpm[row.names ( data$cpm) == gg ,  ] ) )
+  if ( ncol ( count_mini) == 0 ) { next; }
+  print ( gg )
+  colnames(count_mini) = "count"
+  count_mini$sample =  gsub ( "[A-Z]$", "", row.names ( count_mini)  )
+  
+  count_mini = merge(count_mini, probit_df , by.x="sample", by.y = "sample" )
+  count_mini$genome = factor ( count_mini$genome, levels = c("KRAS",'wt' ))
+  
+  count_mini$mutation = ifelse ( count_mini$genome == "KRAS", 1, 0 )
+  count_mini$mutation = factor ( count_mini$mutation, levels= c(1,0))
+  
+  
+  logit = glm(mutation ~ gender + age.diag + count ,  family=binomial(link="logit"), data=count_mini)
+      
+     df= cbind(Estimate=round(coef(logit),4),
+            OR=round(exp(coef(logit)),4), 
+            p.value = coef(summary(logit))[,4]
+            )
+     df = data.frame(df )
+   
+  summary ( logit )    
+  logit.or = exp(coef(logit))
+  
+  df$gene = gg 
+  or_df = rbind ( or_df, df[ 4, ])
+}
+
+
+or_df_ex =   or_df[ or_df$gene %in% c( "KRAS", "UHRF1"  ), ] 
+
+or_df = or_df[ ! or_df$gene %in% c( "KRAS", "UHRF1"  ), ] 
+
+
+or_df = or_df[ or_df$p.value < .05, ] 
+or_df$class = ifelse ( or_df$OR < 1, "low", "high")
+
+table ( or_df$class )  
+
+# histogram 
+
+ccc=c ( low="#d1b543", high="#99755a")  
+cut_here = 1
+msg = ""
+binwidth= 0.20 
+y=.3
+
+
+or_hist = ggplot(or_df, aes(x=OR)) + 
+    geom_histogram(aes(y=(..count..)/sum(..count..), fill=class), colour='white' , alpha=.7 , binwidth= binwidth )+
+    # geom_density(alpha=0, fill="grey") +
+    theme(legend.position="none",  legend.key = element_blank(),
+          # element_blank()
+          axis.text.y = element_text(size= 25 ),
+          axis.text.x =  element_text(size= 25 ),
+          axis.title.x = element_text(size=25),
+          axis.title.y     = element_text(size=25), 
+          legend.text      =element_text(size=25),
+          legend.title = element_text(size=25),
+          plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
+          # hjust centers the title
+    ) + theme(
+              #panel.grid.major = element_blank()
+              #, panel.grid.minor = element_blank()
+              panel.background = element_blank()
+              , axis.line = element_line(colour = "black") # plot border
+    ) + ylab ( "percent") + 
+   geom_vline(xintercept = cut_here, linetype = 2, color = "black") +
+   # annotate(geom = "text", x = cut_here , y = y, label = paste0 ( msg , cut_here ), color = "black", angle = 90, vjust=2.5) + 
+   xlab ("Odd Ratio") + scale_fill_manual(values =ccc) +
+   scale_y_continuous(expand = c(0, 0), limits = c(0, NA)) +
+   theme(legend.position="top", 
+      legend.text      =element_text(size=25),
+      legend.title = element_text(size=25),
+      plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
+      # hjust centers the title
+)
+
+
+tally = data.frame ( table ( or_df$class))
+
+or_pie = make.pie( tally
+                           , name.first="OR class"
+                           , cc = ccc
+                           , leg.pos = "none"
+                           , title = ""
+) 
+ 
+
+
+
+or_hist + or_pie + plot_layout(widths = c(3,1))
+
+
+
+
+```
+
+### Odd ratio
+
+  * from the `r nrow ( tally_cor )` genes that anticorrelated with UHRF1 how many of these gene expression are significantly 
+associated with the odds of having a KRAS mutation vs wt-type in patients with lung cancer. 
+  * Odd ratio > 1: increase expression is associated with higher odds of KRAS mutation
+    + example, an oadd ratio of 1.4 means the odds of having a KRAS mutations is 1.4 times greater with every cpm unit incrase in the gene. 
+  * Odd ratio < 1: decrease expression is associated with higher oads of KRAS mutation. 
+  
+    + example, an odd ratio of .4 indicates that thed odds of having a KRAS mutation decreases by a factor 0.4 for every cpm unit increase in the gene 
+#### Histogram 
+
+```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
+
+or_hist + or_pie + plot_layout(widths = c(3,1))
+
+```
+
+#### Table
+
+  * all significant genes. 
+  * ranked by OR low to high
+  * note CDKN1A does have OR < 1 
+
+
+
+
 
 ```{r}
 library ( ggbeeswarm )
