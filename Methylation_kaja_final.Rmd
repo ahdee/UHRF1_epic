@@ -199,7 +199,7 @@ update = 1
 
 
 kaja = read.table ("LUAD_TSGene.txt", header = T, sep="\t" )
-
+kaja_og = nrow ( kaja )
 
 ```
 
@@ -2200,6 +2200,15 @@ result_var[[res]]$post$sig_chr = ggplot(freqvar, aes(Chr, Freq, fill=class)) +
 
 ```
 
+
+### Extra Pathways {.tabset}
+
+```{r}
+# looking for pathways related to development/morphonesis/stem cells 
+
+```
+
+
 ## CpG variablity {.tabset}
 
 
@@ -2720,11 +2729,19 @@ tally_cor = cor[ cor$fdr < .05 & cor$direction == "neg", ]
 ```
 
 ### List of TSG that significantly negatively correlated with UHRF1 
-  * out of <span style="color:#d6542d; font-weight: bold;"> `r length (kaja$gene)` </span> TSG there were
+  * out of a total of <span style="color:#d6542d; font-weight: bold;"> `r length (kaja$gene)` </span> TSG there were `r nrow ( tally_cor )` that were significantly correlated with UHRF1. 
+    + TSG were from Kaja TSG list, originally `r kaja_og` and `r nrow ( notinkaja_luad)` from the LUAD paper. 
+    + __7/2022__ we added genes from the original LUAD Nature paper. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4231481/
+    + there was a total of `r total_luad1` unique genes. 
+    + subsetting this with COSMIC defined as TSG the total was `r total_luad2`
+    + of these `r nrow ( notinkaja_luad )` was not found in the original TSG list 
+    + the newly added genes included p16 ( CDKN2A  )
 
 ```{r fig=TRUE,fig.width= 7 , fig.height= 7 , echo=FALSE, include=TRUE, results='asis' }
 
-kable( tally_cor  , format = "html" , row.names = T, caption = "Negatively correlated with UHRF1 ( fdf < .05) " ) %>% kable_classic(full_width = F, position = "center")
+
+DT::datatable ( tally_cor  , rownames = T)
+
 
 
 ```
@@ -2755,12 +2772,24 @@ cor_kras = cor_kras[ order ( cor_kras$direction), ]
 cor_kras_urhf1 = merge ( tally_cor [ , "cor", drop=F], cor_kras [ cor_kras$direction == "neg", "cor_kras", drop=F], by="row.names" ) 
 colnames (  cor_kras_urhf1  ) = c("gene", "UHRF1_cor", "KRAS_cor")
 
+total_uhrf1_cor = nrow ( tally_cor ) 
+total_uhrf1_cor_neg = nrow ( tally_cor[ tally_cor$direction == "neg", ] ) 
+
+total_uhrf1KRAS_cor = nrow ( cor_kras[ cor_kras$fdr < .05, ] )
+total_uhrf1KRAS_cor_neg = nrow ( cor_kras[ cor_kras$fdr < .05 & cor_kras$direction == "neg", ] ) 
+
+msgtsgkras = paste ( 
+  "out of", total_uhrf1_cor, "TSG's that were significantly anticorrelated with UHFR1,",  total_uhrf1KRAS_cor, "TSGs were also significantly", 
+  "correlated with KRAS, or of these", total_uhrf1KRAS_cor_neg, "were significantly anti correlated, or ", round ( total_uhrf1KRAS_cor_neg/total_uhrf1KRAS_cor,2), "percent"
+  )
+
 ```
 
 ### Including KRAS 
 
-  * pie charts are all correlations with fdr < .05 
-  * Right plot only includes gene 
+  * Only genes with fdr < .05 correlations are tabulated 
+  * `r msgtsgkras`
+  
 
 ```{r fig=TRUE,fig.width= 7 , fig.height= 7 , echo=FALSE, include=TRUE, results='asis' }
 
@@ -3476,6 +3505,35 @@ zhengASC <- function (genes, count, p=.75){
 ```
 
 
+```{r}
+library ( ggbeeswarm )
+library (  forestplot )
+library ( ggridges)
+# get survival data 
+# get mutation table 
+xena.mut <- read.table(paste(resource, 
+                             'public/mutations/',"mutation_xena.txt",sep="")
+                       , fill=TRUE, header = TRUE
+                       , sep="\t", stringsAsFactors=F)
+
+xena.mut$sample <- gsub("\\-01","",xena.mut$sample)
+## get survival analysis from: https://www.cell.com/action/showPdf?pii=S0092-8674%2818%2930229-0
+# ok that is 
+# DFI disease free 
+# PFI progression free 
+sclinmain = read.table(
+  paste0(resource, 'public/survival/Survival_SupplementalTable_S1_20171025_xena_sp.tsv',sep=""), fill=TRUE, header = TRUE, sep="\t", stringsAsFactors=F)
+
+
+
+
+
+```
+
+
+
+
+
 ## Survival {.tabset}
 
 
@@ -3483,10 +3541,11 @@ zhengASC <- function (genes, count, p=.75){
 
   * how many genes have the following criteria? 
     + Genes that have __HR < 1  ( that is increase expression is protective)__
-    + only genes that are __significant Hazard in KRAS grou BUT not WT__
+    + only genes that are __significant in KRAS mutations BUT not WT__
   * the following censors are analyzed: "OS","DSS","DFI","PFI"
     + 4 different survival were completed here.
-    + OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car), PFI as well as DFI, progression and disease free
+      - OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car)
+      - PFI as well as DFI, progression and disease free
 
 ```{r fig=TRUE,fig.width=8, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
 
@@ -3530,10 +3589,11 @@ DT::datatable(onlykras,
 
   * how many genes have the following criteria? 
     + Genes that have __HR < 1  ( that is increase expression is protective)__
-    + only genes that are __significant in KRAS BUT not WT__
+    + only genes that are __significant in KRAS mutations BUT not WT__
   * the following censors are analyzed: "OS","DSS","DFI","PFI"
     + 4 different survival were completed here.
-    + OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car), PFI as well as DFI, progression and disease free
+      - OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car)
+      - PFI as well as DFI, progression and disease free
   * __ALSO__ in TSG list that correlated negatively with UHRF1
 
 #### Overall Summary 
@@ -3632,7 +3692,9 @@ surv_kras_tsg_cor_uhrf1_plots [[s]] = surv_kras_tsg_cor_uhrf1 [ surv_kras_tsg_co
 # keep this to display later but will remove duplicate sorting decrease asb ( HR )  
 table_all_surv_kras_tsg_cor_uhrf1 = data.frame ( table ( surv_kras_tsg_cor_uhrf1$censor))
 table_all_surv_kras_tsg_cor_uhrf1 = table_all_surv_kras_tsg_cor_uhrf1[order ( table_all_surv_kras_tsg_cor_uhrf1$Freq, decreasing=T), ]
-kable( table_all_surv_kras_tsg_cor_uhrf1  , format = "html" , row.names = F, caption = "Total frequency" ) %>% kable_classic(full_width = F, position = "center")
+
+kable( table_all_surv_kras_tsg_cor_uhrf1  , format = "html" , row.names = F, caption = "Total frequency" ) %>% 
+  kable_classic(full_width = F, position = "center", font_size = 27 )
 
 ```
 
@@ -3647,6 +3709,14 @@ surv_kras_tsg_cor_uhrf1_plots[["OS"]] +  ( surv_kras_tsg_cor_uhrf1_plots[["PFI"]
 ```{r}
 
 ## add zheng - combine all negative and see what the results are. 
+
+mut.this = "KRAS"
+plots = list ()
+plots_exp = list()
+cen = c(1:4)
+names ( cen ) = c( "OS","DSS","DFI","PFI")
+
+
 
 
 os_genes = surv_kras_tsg_cor_uhrf1[ surv_kras_tsg_cor_uhrf1$HR < 1 & surv_kras_tsg_cor_uhrf1$censor == "OS", ]$gene
@@ -3716,6 +3786,8 @@ grid.arrange (
 ```
 
 #### combined TSG and survival {.tabset}
+
+  * Now we take all the "protective" genes in either OS or KRAS, combined them and look for survival 
 
 ##### Overall Specific Survival (OS) 
 
@@ -3880,15 +3952,15 @@ or_hist + or_pie + plot_layout(widths = c(3,1))
 
 ```
 
-### Odd ratio
+### Odd ratio {.tabset}
 
   * from the `r nrow ( tally_cor )` genes that anticorrelated with UHRF1 how many of these gene expression are significantly 
 associated with the odds of having a KRAS mutation vs wt-type in patients with lung cancer. 
   * Odd ratio > 1: increase expression is associated with higher odds of KRAS mutation
-    + example, an oadd ratio of 1.4 means the odds of having a KRAS mutations is 1.4 times greater with every cpm unit incrase in the gene. 
-  * Odd ratio < 1: decrease expression is associated with higher oads of KRAS mutation. 
-  
+    + example, an oadd ratio of 1.4 means the odds of having a KRAS mutations is 1.4 times greater with every cpm unit increase in the gene. 
+  * Odd ratio < 1: decrease expression is associated with higher odds of KRAS mutation. 
     + example, an odd ratio of .4 indicates that thed odds of having a KRAS mutation decreases by a factor 0.4 for every cpm unit increase in the gene 
+    
 #### Histogram 
 
 ```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
@@ -3901,36 +3973,7 @@ or_hist + or_pie + plot_layout(widths = c(3,1))
 
   * all significant genes. 
   * ranked by OR low to high
-  * note CDKN1A does have OR < 1 
-
-
-
-
-
-```{r}
-library ( ggbeeswarm )
-library (  forestplot )
-library ( ggridges)
-# get survival data 
-# get mutation table 
-xena.mut <- read.table(paste(resource, 
-                             'public/mutations/',"mutation_xena.txt",sep="")
-                       , fill=TRUE, header = TRUE
-                       , sep="\t", stringsAsFactors=F)
-
-xena.mut$sample <- gsub("\\-01","",xena.mut$sample)
-## get survival analysis from: https://www.cell.com/action/showPdf?pii=S0092-8674%2818%2930229-0
-# ok that is 
-# DFI disease free 
-# PFI progression free 
-sclinmain = read.table(
-  paste0(resource, 'public/survival/Survival_SupplementalTable_S1_20171025_xena_sp.tsv',sep=""), fill=TRUE, header = TRUE, sep="\t", stringsAsFactors=F)
-
-
-
-
-
-```
+  * note __CDKN1A does have OR < 1 __ 
 
 
 ```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
@@ -3941,7 +3984,7 @@ or_df$Estimate = NULL
 DT::datatable(or_df,
               caption = '', rownames = F, filter= list ( position="top", clear = FALSE )  , extensions = 'Buttons'
               , options = list(dom = 'Bfrtip'
-                               , autoWidth = F, scrollX=T, className = 'dt-left', pageLength =50
+                               , autoWidth = F, scrollX=T, className = 'dt-left', pageLength =20
               )
               
 )
