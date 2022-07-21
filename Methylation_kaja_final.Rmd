@@ -2286,12 +2286,13 @@ gseaGo_devel_plot= ggplot(cluego1b , aes( x = group, total )) +
   * Reviewer was wondering why pathways did not show certain polycomb group proteins (PCG)related pathways such as, ones for development, morphogenesis or stem cell/progenitor and differentiation. This is because we did not show most pathways. Here I subsetted GO pathways in our GSEA analysis and found `r nrow ( rev1)` invovled in these pathways.  
 
 #### plot PCG
-
+  * In the original paper many of the pathways were not shown, leading the reviewer to wonder why certain pathways especially those of (PCG)related pathways such as, ones for development, morphogenesis or stem cell/progenitor and differentiation were not present. Thus here I took all significant GSEA enriched pathways related to aforementioned pathways, calculated KAPA score ( group ) and label the top group with the pathway with lowest pv and highest enrichment score.
   * we extracted relevant pathways and group pathways using cluego 
   * only groups with >5 pathways are shown
   * each group is described by the pathway with the lowest fdr follow by highest enrichment score. 
+  * x-axis is the total pathways asociated with each group ( y-axis)
 
-```{r fig=TRUE,fig.width=9, fig.height=7, echo=FALSE, include=TRUE, results='asis' }
+```{r fig=TRUE,fig.width=12, fig.height=7, echo=FALSE, include=TRUE, results='asis' }
 gseaGo_devel_plot
 ```
 
@@ -2765,6 +2766,7 @@ ggplot(cpm, aes_string(x=x, y=y )) +
 
 
 
+
 ```
 
 ```{r}
@@ -2782,16 +2784,13 @@ ggplot(cpm, aes_string(x=x, y=y )) +
 ### UHRF1 correlations
 
 * UHRF1 correlation with TSG, define with Kaja's list. 
-* out of a total of <span style="color:#d6542d; font-weight: bold;"> `r length (kaja$gene)` </span> TSG there were `r nrow ( tally_cor )` that were significantly correlated with UHRF1
+* out of a total of <span style="color:#d6542d; font-weight: bold;"> `r length (kaja$gene)` </span>
 * As you can see most of the stronger top correltions are all negatively correlated. 
 * __7/2022__ we added genes from the LUAD paper. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4231481/
-* there was a total of `r total_luad1` unique genes from the LUAD set. 
-  + subsetting this with COSMIC defined as TSG the total was `r total_luad2`
-  + of these `r nrow ( notinkaja_luad )` was not found in the original TSG list
-    - this includes the p16 ( CDKN2A ) the reviewer was adamant about
+
   
 
-```{r fig=TRUE,fig.width= 7 , fig.height= 7 , echo=FALSE, include=TRUE, results='asis' }
+```{r fig=TRUE,fig.width= 10, fig.height= 6 , echo=FALSE, include=TRUE, results='asis' }
 p 
 
 ```
@@ -2921,6 +2920,17 @@ DT::datatable ( tally_cor  , rownames = T)
 
 
 ```
+
+```{r}
+# how many of these were not in the original 
+
+
+tally_cor [row.names ( tally_cor) %in% notinkaja_luad,  ] # non of these genes are in here
+notinkaja_luad$gene
+
+
+```
+
 
 ```{r}
 # which one of these are also correlated with KRAS? 
@@ -3757,7 +3767,12 @@ DT::datatable(onlykras,
 
 ```
 
+```{r}
 
+# how many are in the luad list 
+onlykras[onlykras$gene %in% notinkaja_luad$gene, ]
+
+```
 
 
 
@@ -3770,7 +3785,7 @@ DT::datatable(onlykras,
     + 4 different survival were completed here.
       - OS, DSS ( Overall Specific Survival, death specific to disease aka not run over by car)
       - PFI as well as DFI, progression and disease free
-  * __ALSO__ in TSG list that correlated negatively with UHRF1
+  * __ALSO__ in TSG list that correlated negatively with UHRF1 AND KRAS
 
 #### Overall Summary 
 
@@ -3963,11 +3978,12 @@ grid.arrange (
 
 #### combined TSG and survival {.tabset}
 
-  * Now we take all the "protective" genes in either OS or KRAS, combined them and look for survival 
+  * Taking all the “protective” gene in either OS or PFI we show that these genes are collectively protective 
+
 
 ##### Overall Specific Survival (OS) 
 
-```{r fig=TRUE,fig.width=12, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+```{r fig=TRUE,fig.width=13, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
 
 grid.arrange ( 
     surv_kras_tsg_cor_uhrf1_ALL_neg_OS$plot.mut$grobs[[ 1 ]] , 
@@ -4130,6 +4146,7 @@ or_hist + or_pie + plot_layout(widths = c(3,1))
 
 ### Odd ratio {.tabset}
 
+  * Are any TSGs correlated with KRAS mutation? To do this we run a Logit model to calculate Odd ratios. 
   * from the `r nrow ( tally_cor )` genes that anticorrelated with UHRF1 how many of these gene expression are significantly 
 associated with the odds of having a KRAS mutation vs wt-type in patients with lung cancer. 
   * Odd ratio > 1: increase expression is associated with higher odds of KRAS mutation
@@ -4149,7 +4166,7 @@ or_hist + or_pie + plot_layout(widths = c(3,1))
 
   * all significant genes. 
   * ranked by OR low to high
-  * note __CDKN1A does have OR < 1 __ 
+
 
 
 ```{r fig=TRUE,fig.width=7.5, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
@@ -4348,7 +4365,7 @@ cat ( "\n\n")
 
 ### UHRF1 survival
 
-```{r fig=TRUE,fig.width=9, fig.height=6, echo=FALSE, include=TRUE, results='asis' }
+```{r}
 
 
 
@@ -4472,70 +4489,7 @@ all_pos  = wrapper.surv ( test.gene= c ( unique ( gene.this  ) )
 ```
 
 
-### TSGs Combined {.tabset}
 
-#### All TSG {.tabset}
-
-##### KRAS 
-
-```{r fig=TRUE,fig.width=14, fig.height=16, echo=FALSE, include=TRUE, results='asis' }
-
-grid.arrange( all$plot.mut)
-
-
-```
-
-##### WT KRAS 
-
-```{r fig=TRUE,fig.width=14, fig.height=16, echo=FALSE, include=TRUE, results='asis' }
-
-
-grid.arrange( all$plot.wt)
-
-```
-
-
-#### Negative correlation UHRF1 {.tabset}
-
-##### KRAS 
-
-```{r fig=TRUE,fig.width=14, fig.height=16, echo=FALSE, include=TRUE, results='asis' }
-
-grid.arrange( all_neg$plot.mut)
-
-
-```
-
-##### WT KRAS 
-
-```{r fig=TRUE,fig.width=14, fig.height=16, echo=FALSE, include=TRUE, results='asis' }
-
-
-grid.arrange( all_neg$plot.wt)
-
-```
-
-
-
-#### postive correlation UHRF1 {.tabset}
-
-##### KRAS 
-
-```{r fig=TRUE,fig.width=14, fig.height=16, echo=FALSE, include=TRUE, results='asis' }
-
-grid.arrange( all_pos$plot.mut)
-
-
-```
-
-##### WT KRAS 
-
-```{r fig=TRUE,fig.width=14, fig.height=16, echo=FALSE, include=TRUE, results='asis' }
-
-
-grid.arrange( all_pos$plot.wt)
-
-```
 
 
 ## Kaja selected correlations {.tabset}
