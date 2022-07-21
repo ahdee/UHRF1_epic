@@ -95,7 +95,7 @@ library(heatmap3)
 library(data.table)
 library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
 library(org.Hs.eg.db)
-
+library(scales)
 library(VennDiagram)
 
 require(reshape)
@@ -1736,10 +1736,10 @@ dev.off()
 ```
 
 #### DM trends for ERV
-  * Are do probes on ERV elements show similar trend? 
-   + Method: ERV coordinates donwloaded from UCSC repeatMasker. Only Family of ERV elements were included, LINC, SINE were excluded. 
-   + Each position of Cpg probes ( from EPIC plateform) were added and subtracted by 1 bp  
-   + These probes were chosen if the geneomic position fall within the range of ERV.  
+  * Do probes on ERV elements show similar trend? 
+   + Method: ERV coordinates donwloaded from UCSC repeatMasker. Only Family of ERV elements were included, LINE1, SINE were excluded. 
+   + Each position of a Cpg probe ( from EPIC plateform) were added and subtracted by 1 bp  
+   + These probes were chosen if the geneomic position +1 & -1 fall within the range of the ERV element.  
    + however it is important to note that even if these result show that ERV may be invovled it IS NOT exclusive ERV regions and that its most likely a global event.  
 
 ```{r fig=TRUE,fig.width=6, fig.height=7.5, echo=FALSE, include=TRUE, results='asis'}
@@ -2251,22 +2251,29 @@ cluego1b$group = factor ( cluego1b$group, levels = as.character ( rev ( cluego1b
 
 gseaGo_devel_plot= ggplot(cluego1b , aes( x = group, total )) + 
   geom_col( fill="steelblue" ) + 
+  #geom_col( aes ( fill= NES ) ) + 
   coord_flip() +
-   theme(legend.position="none",  legend.key = element_blank(),
-          # element_blank()
-          axis.text.y = element_text(size= 25 ),
-          axis.text.x =  element_text(size= 25 ),
-          axis.title.x = element_text(size=25),
-          axis.title.y     = element_text(size=25), 
-          legend.text      =element_text(size=25),
-          legend.title = element_text(size=25),
-          plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
-          # hjust centers the title
-    ) + theme(panel.grid.major = element_blank()
-              , panel.grid.minor = element_blank()
-              ,panel.background = element_blank()
-              , axis.line = element_line(colour = "black") # plot border
-    ) 
+  theme(legend.position="right",  legend.key = element_blank(),
+        # element_blank()
+        axis.text.y = element_text(size= 18 ),
+        axis.text.x =  element_text(size= 18 ),
+        axis.title.x = element_text(size=18),
+        axis.title.y     = element_text(size=18), 
+        legend.text      =element_text(size=18),
+        legend.title = element_text(size=18),
+        plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
+        # hjust centers the title
+  ) + theme(panel.grid.major = element_blank()
+            , panel.grid.minor = element_blank()
+            ,panel.background = element_blank()
+            , axis.line = element_line(colour = "black") # plot border
+  ) + scale_fill_gradient2(low = "#c5dce6", 
+                       high = "#308bb3", 
+                       mid = "#00b1ff",
+                       midpoint = median(cluegoALLb$NES)
+  ) +scale_y_log10(breaks = scales::log_breaks(n = 10 , base=2)) +
+  # scale_x_discrete(labels = wrap_format(60)) # wrap
+   scale_x_discrete(label = function(x) stringr::str_trunc(x, 60))
  
 
 
@@ -2276,7 +2283,7 @@ gseaGo_devel_plot= ggplot(cluego1b , aes( x = group, total )) +
 
 ### Extra Pathways {.tabset}
 
-  * Reviewer was wondering why pathways did not show certain polycomb group proteins (PCG)related pathways such as, ones for development, morphogenesis or stem cell/progenitor and differentiation. This is because we did not show most pathways. Here I subsetted GO pathways in our GSEA analysis and found `r nrow ( rev1)` invovled.  
+  * Reviewer was wondering why pathways did not show certain polycomb group proteins (PCG)related pathways such as, ones for development, morphogenesis or stem cell/progenitor and differentiation. This is because we did not show most pathways. Here I subsetted GO pathways in our GSEA analysis and found `r nrow ( rev1)` invovled in these pathways.  
 
 #### plot PCG
 
@@ -2284,13 +2291,13 @@ gseaGo_devel_plot= ggplot(cluego1b , aes( x = group, total )) +
   * only groups with >5 pathways are shown
   * each group is described by the pathway with the lowest fdr follow by highest enrichment score. 
 
-```{r fig=TRUE,fig.width=8, fig.height=6.5, echo=FALSE, include=TRUE, results='asis' }
+```{r fig=TRUE,fig.width=9, fig.height=7, echo=FALSE, include=TRUE, results='asis' }
 gseaGo_devel_plot
 ```
 
 #### Table 
 
-```{r fig=TRUE,fig.width=12, fig.height=9, echo=FALSE, include=TRUE, results='asis' }
+```{r fig=TRUE,fig.width=20, fig.height=9, echo=FALSE, include=TRUE, results='asis' }
 DT::datatable(rev1[ , c("ID","Description", "NES","pvalue","padj") ], 
               filter= list ( position="top", clear = FALSE )  
                                 , extensions = 'Buttons'
@@ -2335,17 +2342,17 @@ cluegoALLb = cluegoALLb[ cluegoALLb$total > 5, ]
 cluegoALLb$group = factor ( cluegoALLb$group, levels = as.character ( rev ( cluegoALLb$group) ) )
 
 
-gseaGo_all_plot= ggplot(cluegoALLb , aes( x = group, log2(total) )) + 
+gseaGo_all_plot= ggplot(cluegoALLb , aes( x = group, y=total )) + 
   geom_col( aes ( fill= NES ) ) + 
   coord_flip() +
   theme(legend.position="right",  legend.key = element_blank(),
         # element_blank()
-        axis.text.y = element_text(size= 25 ),
-        axis.text.x =  element_text(size= 25 ),
-        axis.title.x = element_text(size=25),
-        axis.title.y     = element_text(size=25), 
-        legend.text      =element_text(size=25),
-        legend.title = element_text(size=25),
+        axis.text.y = element_text(size= 18 ),
+        axis.text.x =  element_text(size= 18 ),
+        axis.title.x = element_text(size=18),
+        axis.title.y     = element_text(size=18), 
+        legend.text      =element_text(size=18),
+        legend.title = element_text(size=18),
         plot.title = element_text(size = 40, face = "bold", hjust = 0.5)
         # hjust centers the title
   ) + theme(panel.grid.major = element_blank()
@@ -2356,18 +2363,20 @@ gseaGo_all_plot= ggplot(cluegoALLb , aes( x = group, log2(total) )) +
                        high = "#308bb3", 
                        mid = "#00b1ff",
                        midpoint = median(cluegoALLb$NES)
-  )
+  ) +scale_y_log10(breaks = scales::log_breaks(n = 10 , base=2)) +
+  # scale_x_discrete(labels = wrap_format(60)) # wrap
+   scale_x_discrete(label = function(x) stringr::str_trunc(x, 50))
 
 ```
 
 #### plot PCG
 
-  * we do a total GSEA pathways, this includes kegg, go, and reactome 
+  * Here we plot __all enriched__ GSEA pathways, this includes kegg, go, and reactome 
   * only groups with >5 pathways are shown
   * each group is described by the pathway with the lowest fdr follow by highest enrichment score.
   * total is represented as log2 ( total pathways for the particular group)
 
-```{r fig=TRUE,fig.width=12, fig.height=6.5, echo=FALSE, include=TRUE, results='asis' }
+```{r fig=TRUE,fig.width=20, fig.height=10.5, echo=FALSE, include=TRUE, results='asis' }
 gseaGo_all_plot
 
 ```
@@ -2773,11 +2782,13 @@ ggplot(cpm, aes_string(x=x, y=y )) +
 ### UHRF1 correlations
 
 * UHRF1 correlation with TSG, define with Kaja's list. 
+* out of a total of <span style="color:#d6542d; font-weight: bold;"> `r length (kaja$gene)` </span> TSG there were `r nrow ( tally_cor )` that were significantly correlated with UHRF1
 * As you can see most of the stronger top correltions are all negatively correlated. 
 * __7/2022__ we added genes from the LUAD paper. https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4231481/
-* there was a total of `r total_luad1` unique genes. 
+* there was a total of `r total_luad1` unique genes from the LUAD set. 
   + subsetting this with COSMIC defined as TSG the total was `r total_luad2`
-  + of these `r nrow ( notinkaja_luad )` was not found in the original TSG list 
+  + of these `r nrow ( notinkaja_luad )` was not found in the original TSG list
+    - this includes the p16 ( CDKN2A ) the reviewer was adamant about
   
 
 ```{r fig=TRUE,fig.width= 7 , fig.height= 7 , echo=FALSE, include=TRUE, results='asis' }
@@ -2945,7 +2956,7 @@ total_uhrf1KRAS_cor_neg = nrow ( cor_kras[ cor_kras$fdr < .05 & cor_kras$directi
 
 msgtsgkras = paste ( 
   "out of", total_uhrf1_cor, "TSG's that were significantly anticorrelated with UHFR1,",  total_uhrf1KRAS_cor, "TSGs were also significantly", 
-  "correlated with KRAS, or of these", total_uhrf1KRAS_cor_neg, "were significantly anti correlated, or ", round ( total_uhrf1KRAS_cor_neg/total_uhrf1KRAS_cor,2), "percent"
+  "correlated with KRAS, of these", total_uhrf1KRAS_cor_neg, "were significantly anti correlated, or ", round ( total_uhrf1KRAS_cor_neg/total_uhrf1KRAS_cor,2), "percent"
   )
 
 ```
