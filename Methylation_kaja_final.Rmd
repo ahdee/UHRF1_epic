@@ -4425,6 +4425,16 @@ dev.off()
 
 ```
 
+```{r fig=TRUE,fig.width=14.5, fig.height=8, echo=FALSE, include=TRUE, results='asis' }
+
+grid.arrange(
+   results2$plot.mut$grobs[[cen[2]]], 
+     results2$plot.wt$grobs[[cen[2]]], joy_surv, ncol=3
+)
+
+
+
+```
 
 
 ```{r}
